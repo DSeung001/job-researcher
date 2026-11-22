@@ -23,6 +23,7 @@ export async function collect(
   try {
     for (const source of ["jobkorea", "wanted"] as Source[]) {
       const old = await readDataset(source);
+      const checkedAtById = { ...old.checkedAtById };
       const deadline = Date.now() + 22 * 60 * 1000;
       const now = new Date().toISOString();
       let discovered = 0,
@@ -48,8 +49,8 @@ export async function collect(
         ];
         const previous = new Map(old.jobs.map((j) => [j.id, j]));
         candidates.sort((a, b) =>
-          (previous.get(a)?.lastSeenAt ?? "").localeCompare(
-            previous.get(b)?.lastSeenAt ?? "",
+          (checkedAtById[a] ?? previous.get(a)?.lastSeenAt ?? "").localeCompare(
+            checkedAtById[b] ?? previous.get(b)?.lastSeenAt ?? "",
           ),
         );
         const targets = candidates.slice(0, options.maxDetails ?? Infinity);
@@ -70,9 +71,11 @@ export async function collect(
           } catch {
             failed++;
           }
+          checkedAtById[id] = now;
           if ((jobs.length + failed + filtered) % 25 === 0) {
             await atomicJson(`data/${source}.json`, {
               jobs: mergeJobs(old.jobs, jobs, now),
+              checkedAtById,
               run: {
                 at: now,
                 success: false,
@@ -109,6 +112,7 @@ export async function collect(
       };
       await atomicJson(`data/${source}.json`, {
         jobs: mergeJobs(old.jobs, jobs, now),
+        checkedAtById,
         run,
       });
       results.push({ source, ...run });

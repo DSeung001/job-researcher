@@ -32,7 +32,11 @@ export type Run = {
   filtered?: number;
   reason: string | null;
 };
-export type Dataset = { jobs: Job[]; run: Run | null };
+export type Dataset = {
+  jobs: Job[];
+  run: Run | null;
+  checkedAtById?: Record<string, string>;
+};
 const companyFlags = z.object({
   isSkipped: z.boolean().default(false),
   isInterested: z.boolean().default(false),
