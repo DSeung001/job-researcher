@@ -29,6 +29,7 @@ export type Run = {
   discovered: number;
   fetched: number;
   failed: number;
+  filtered?: number;
   reason: string | null;
 };
 export type Dataset = { jobs: Job[]; run: Run | null };

@@ -9,6 +9,7 @@ import {
   sleep,
 } from "./collectors.js";
 import type { Job, Source } from "./model.js";
+import { classifyJob } from "./matching.js";
 export async function collect(
   options: { maxPages?: number; maxDetails?: number } = {},
 ) {
@@ -25,7 +26,8 @@ export async function collect(
       const deadline = Date.now() + 22 * 60 * 1000;
       const now = new Date().toISOString();
       let discovered = 0,
-        failed = 0;
+        failed = 0,
+        filtered = 0;
       const jobs: Job[] = [];
       let complete = false;
       let reason: string | null = null;
@@ -39,7 +41,9 @@ export async function collect(
         const candidates = [
           ...new Set([
             ...discovery.ids,
-            ...old.jobs.filter((j) => j.status !== "closed").map((j) => j.id),
+            ...old.jobs
+              .filter((j) => j.status !== "closed" && classifyJob(j) !== null)
+              .map((j) => j.id),
           ]),
         ];
         const previous = new Map(old.jobs.map((j) => [j.id, j]));
@@ -60,11 +64,13 @@ export async function collect(
             break;
           }
           try {
-            jobs.push(await getDetail(source, id));
+            const job = await getDetail(source, id);
+            if (classifyJob(job) !== null) jobs.push(job);
+            else filtered++;
           } catch {
             failed++;
           }
-          if ((jobs.length + failed) % 25 === 0) {
+          if ((jobs.length + failed + filtered) % 25 === 0) {
             await atomicJson(`data/${source}.json`, {
               jobs: mergeJobs(old.jobs, jobs, now),
               run: {
@@ -74,6 +80,7 @@ export async function collect(
                 discovered,
                 fetched: jobs.length,
                 failed,
+                filtered,
                 reason: "in-progress",
               },
             });
@@ -97,6 +104,7 @@ export async function collect(
         discovered,
         fetched: jobs.length,
         failed,
+        filtered,
         reason,
       };
       await atomicJson(`data/${source}.json`, {

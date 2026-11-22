@@ -5,6 +5,7 @@ import { readDataset, readState, mutateState } from "./store.js";
 import { stateSchema } from "./model.js";
 import { collect } from "./collect.js";
 import { companyKey, linkedKey, scoreJob } from "./domain.js";
+import { classifyJob } from "./matching.js";
 const app = express();
 app.use((req, res, next) => {
   const host = req.headers.host ?? "";
@@ -29,6 +30,7 @@ app.get("/api/dashboard", async (_req, res) => {
   const state = await readState();
   const jobs = datasets
     .flatMap((d) => d.jobs)
+    .filter((j) => classifyJob(j) !== null)
     .map((j) => ({
       ...j,
       ...scoreJob(j, state),

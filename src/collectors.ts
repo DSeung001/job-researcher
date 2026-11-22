@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import { chromium } from "playwright";
 import type { Job, Source } from "./model.js";
 import profile from "../config/profile.public.json";
+import { isCandidateTitle } from "./matching.js";
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function fetchHtml(url: string) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -19,9 +20,7 @@ export async function fetchHtml(url: string) {
   }
   throw new Error("Request failed");
 }
-export const relevant = (title: string) =>
-  profile.roles.some((r) => title.toLowerCase().includes(r)) &&
-  !/기획담당|기획자|영업|채용교육|국비|교육생/.test(title);
+export const relevant = isCandidateTitle;
 export function publicText(text: string) {
   return text
     .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, "[이메일 생략]")
@@ -179,7 +178,10 @@ export async function discoverWanted(
 ): Promise<Discovery> {
   const browser = await chromium.launch({ headless: true });
   try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({
+      userAgent: "JobResearcher/0.1 (personal job discovery)",
+      locale: "ko-KR",
+    });
     const response = await page.goto(
       "https://www.wanted.co.kr/wdlist/518?country=kr&job_sort=job.latest_order&years=-1&locations=all",
       { waitUntil: "domcontentloaded" },
@@ -227,7 +229,7 @@ export async function discoverJobkorea(
     if (Date.now() >= deadline)
       return { ids: [...ids], complete: false, reason: "time-budget" };
     const html = await fetchHtml(
-      `https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&duty=1000229,1000231,1000233,1000239,1000244,1000423&Page=${page}`,
+      `https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&duty=1000229,1000231&Page=${page}`,
     );
     const $ = cheerio.load(html);
     const links = $('#dev-gi-list strong > a[href*="/Recruit/GI_Read/" i]')
@@ -250,7 +252,7 @@ export async function discoverJobkorea(
     pages.add(signature);
     for (const link of links) {
       const id = link.href.match(/GI_Read\/(\d+)/i)?.[1];
-      if (id && !/국비|교육생|취업교육/.test(link.text)) ids.add(id);
+      if (id && isCandidateTitle(link.text)) ids.add(id);
     }
     const next = $("#dev-gi-list a[data-page]")
       .toArray()

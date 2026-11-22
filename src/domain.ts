@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Job, State } from "./model.js";
 import profile from "../config/profile.public.json";
+import { classifyJob, titlePosition } from "./matching.js";
 export function contentHash(job: Partial<Job>) {
   const { firstSeenAt, lastSeenAt, contentUpdatedAt, hash, ...content } = job;
   return createHash("sha256")
@@ -35,12 +36,16 @@ export function scoreJob(job: Job, state: State) {
   const text = (job.title + " " + job.description).toLowerCase();
   const reasons: string[] = [];
   let score = 0;
-  const roles = profile.roles.filter((r) =>
-    job.title.toLowerCase().includes(r.toLowerCase()),
-  );
-  if (roles.length) {
+  const position = classifyJob(job);
+  if (position) {
     score += 40;
-    reasons.push("관련 직무");
+    reasons.push(
+      titlePosition(job.title)
+        ? position === "backend"
+          ? "백엔드 직무"
+          : "풀스택 직무"
+        : "본문에 백엔드 업무 근거",
+    );
   }
   const skills = profile.skills.filter((s) =>
     new RegExp(`(^|[^a-z0-9])${s.toLowerCase()}([^a-z0-9]|$)`, "i").test(text),
