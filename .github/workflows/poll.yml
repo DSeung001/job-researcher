@@ -11,7 +11,7 @@ on:
         default: "0"
         required: true
   schedule:
-    - cron: "17 0,9 * * *"
+    - cron: "0 19 * * *" # 매일 한국시간 04:00 (UTC 19:00)
 permissions:
   contents: write
 concurrency:
