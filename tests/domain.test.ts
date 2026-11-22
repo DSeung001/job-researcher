@@ -7,6 +7,7 @@ import {
   parseWanted,
   publicText,
   relevant,
+  deadlineTime,
 } from "../src/collectors.js";
 import { inspectPublicFile } from "../src/privacy.js";
 const sample: Job = {
@@ -95,4 +96,11 @@ test("training advertisements are excluded and public text removes contact detai
     publicText("문의 example@example.org 010-1234-5678"),
     "문의 [이메일 생략] [연락처 생략]",
   );
+});
+test("source deadlines are interpreted in Korea on any runner timezone", () => {
+  assert.equal(
+    deadlineTime("2026-12-01T23:59"),
+    Date.parse("2026-12-01T14:59:00Z"),
+  );
+  assert.equal(deadlineTime("2026-12-01"), Date.parse("2026-12-01T14:59:59Z"));
 });

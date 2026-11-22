@@ -17,6 +17,18 @@ type Dashboard = {
   runs: (Run & { source: string })[];
   collecting: boolean;
 };
+const collectionReason = (reason: string | null) =>
+  reason === "listing-http-403"
+    ? "사이트에서 자동 접근을 제한했습니다."
+    : reason === "detail-limit" ||
+        reason === "page-limit" ||
+        reason === "scroll-limit"
+      ? "설정된 수집 범위까지 확인했습니다."
+      : reason === "repeated-page"
+        ? "목록이 반복되어 수집을 멈췄습니다."
+        : reason
+          ? "일부 공고를 확인하지 못했습니다."
+          : "";
 async function api(path: string, body?: unknown, method = "POST") {
   const r = await fetch("/api/" + path, {
     method: body === undefined ? "GET" : method,
@@ -190,7 +202,7 @@ function App() {
                 · {new Date(r.at).toLocaleString("ko-KR")} · {r.fetched}건
               </>
             )}
-            {r.reason && <small> ({r.reason})</small>}
+            {r.reason && <small> ({collectionReason(r.reason)})</small>}
           </span>
         ))}
       </div>
@@ -376,28 +388,34 @@ function App() {
                     {origin} 경로 확인
                   </a>
                 ))}
-                <button
-                  onClick={() => {
-                    const from = prompt(
-                      "같은 회사로 연결할 공고의 회사 키를 입력하세요. 현재 키: " +
-                        key,
-                    );
-                    if (from && from !== key)
-                      void act("link", { from, to: key });
-                  }}
-                >
-                  같은 회사 연결
-                </button>
-                <button
-                  onClick={() => {
-                    void navigator.clipboard
-                      .writeText(key)
-                      .then(() => setNotice("회사 키를 복사했습니다."))
-                      .catch(() => setNotice(key));
-                  }}
-                >
-                  회사 키 복사
-                </button>
+                <details>
+                  <summary>같은 회사 연결</summary>
+                  <label>
+                    다른 이름이나 사이트로 등록된 회사를 선택하세요.
+                    <select
+                      aria-label="연결할 회사"
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value)
+                          void act("link", { from: e.target.value, to: key });
+                      }}
+                    >
+                      <option value="">회사 선택</option>
+                      {[
+                        ...new Map(
+                          (data?.jobs ?? []).map((j) => [j.companyKey, j]),
+                        ).values(),
+                      ]
+                        .filter((j) => j.companyKey !== key)
+                        .map((j) => (
+                          <option key={j.companyKey} value={j.companyKey}>
+                            {j.companyName} (
+                            {j.source === "wanted" ? "원티드" : "잡코리아"})
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                </details>
               </div>
             </article>
           );

@@ -22,6 +22,7 @@ export async function collect(
   try {
     for (const source of ["jobkorea", "wanted"] as Source[]) {
       const old = await readDataset(source);
+      const deadline = Date.now() + 22 * 60 * 1000;
       const now = new Date().toISOString();
       let discovered = 0,
         failed = 0;
@@ -31,7 +32,7 @@ export async function collect(
       try {
         const discovery = await (
           source === "wanted" ? discoverWanted : discoverJobkorea
-        )(options.maxPages ?? 250);
+        )(options.maxPages ?? 250, deadline);
         discovered = discovery.ids.length;
         complete = discovery.complete;
         reason = discovery.reason;
@@ -41,16 +42,41 @@ export async function collect(
             ...old.jobs.filter((j) => j.status !== "closed").map((j) => j.id),
           ]),
         ];
+        const previous = new Map(old.jobs.map((j) => [j.id, j]));
+        candidates.sort((a, b) =>
+          (previous.get(a)?.lastSeenAt ?? "").localeCompare(
+            previous.get(b)?.lastSeenAt ?? "",
+          ),
+        );
         const targets = candidates.slice(0, options.maxDetails ?? Infinity);
         if (targets.length < candidates.length) {
           complete = false;
           reason = "detail-limit";
         }
         for (const id of targets) {
+          if (Date.now() >= deadline) {
+            complete = false;
+            reason = "time-budget";
+            break;
+          }
           try {
             jobs.push(await getDetail(source, id));
           } catch {
             failed++;
+          }
+          if ((jobs.length + failed) % 25 === 0) {
+            await atomicJson(`data/${source}.json`, {
+              jobs: mergeJobs(old.jobs, jobs, now),
+              run: {
+                at: now,
+                success: false,
+                complete: false,
+                discovered,
+                fetched: jobs.length,
+                failed,
+                reason: "in-progress",
+              },
+            });
           }
           await sleep(600);
         }

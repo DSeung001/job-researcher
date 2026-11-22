@@ -173,7 +173,10 @@ export type Discovery = {
   complete: boolean;
   reason: string | null;
 };
-export async function discoverWanted(limit: number): Promise<Discovery> {
+export async function discoverWanted(
+  limit: number,
+  deadline = Infinity,
+): Promise<Discovery> {
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
@@ -189,6 +192,8 @@ export async function discoverWanted(limit: number): Promise<Discovery> {
     const ids = new Set<string>();
     let stable = 0;
     for (let step = 0; step < limit; step++) {
+      if (Date.now() >= deadline)
+        return { ids: [...ids], complete: false, reason: "time-budget" };
       const links = await page.locator('a[href*="/wd/"]').evaluateAll((nodes) =>
         nodes.map((n) => ({
           href: n.getAttribute("href") ?? "",
@@ -212,10 +217,15 @@ export async function discoverWanted(limit: number): Promise<Discovery> {
     await browser.close();
   }
 }
-export async function discoverJobkorea(limit: number): Promise<Discovery> {
+export async function discoverJobkorea(
+  limit: number,
+  deadline = Infinity,
+): Promise<Discovery> {
   const ids = new Set<string>();
   const pages = new Set<string>();
   for (let page = 1; page <= limit; page++) {
+    if (Date.now() >= deadline)
+      return { ids: [...ids], complete: false, reason: "time-budget" };
     const html = await fetchHtml(
       `https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&duty=1000229,1000231,1000233,1000239,1000244,1000423&Page=${page}`,
     );
