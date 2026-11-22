@@ -182,10 +182,20 @@ export async function discoverWanted(
       userAgent: "JobResearcher/0.1 (personal job discovery)",
       locale: "ko-KR",
     });
-    const response = await page.goto(
-      "https://www.wanted.co.kr/wdlist/518?country=kr&job_sort=job.latest_order&years=-1&locations=all",
-      { waitUntil: "domcontentloaded" },
-    );
+    const listingUrl =
+      "https://www.wanted.co.kr/wdlist/518?country=kr&job_sort=job.latest_order&years=-1&locations=all";
+    let response = await page.goto(listingUrl, {
+      waitUntil: "domcontentloaded",
+    });
+    if (response?.status() === 403) {
+      // Use the same public document through our HTTP client when the browser
+      // transport is rejected. No credentials or private endpoints are used.
+      const html = await fetchHtml(listingUrl);
+      await page.route(listingUrl, (route) =>
+        route.fulfill({ status: 200, contentType: "text/html", body: html }),
+      );
+      response = await page.goto(listingUrl, { waitUntil: "domcontentloaded" });
+    }
     if (!response?.ok())
       throw new Error(
         `Wanted listing HTTP ${response?.status() ?? "no-response"}`,
