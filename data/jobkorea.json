@@ -18,7 +18,7 @@
       "deadline": "2026-11-29T23:59",
       "status": "open",
       "firstSeenAt": "2026-11-22T07:57:10.610Z",
-      "lastSeenAt": "2026-11-22T07:57:10.610Z",
+      "lastSeenAt": "2026-11-22T07:59:09.705Z",
       "contentUpdatedAt": "2026-11-22T07:57:10.610Z",
       "hash": "620637a47d11b424ab6da64a6622b0b5e3248b9be88d1bcb09c7e4ea3140ce3b"
     },
@@ -41,7 +41,7 @@
       "deadline": "2026-12-22T23:50",
       "status": "open",
       "firstSeenAt": "2026-11-22T07:57:10.610Z",
-      "lastSeenAt": "2026-11-22T07:57:10.610Z",
+      "lastSeenAt": "2026-11-22T07:59:09.705Z",
       "contentUpdatedAt": "2026-11-22T07:57:10.610Z",
       "hash": "140f7d5ba8cabe2a45321394f3d06b860c0b720e73edd884940db80435f094ef"
     },
@@ -101,13 +101,13 @@
       "deadline": "2026-11-29T23:59",
       "status": "open",
       "firstSeenAt": "2026-11-22T07:57:10.610Z",
-      "lastSeenAt": "2026-11-22T07:57:10.610Z",
+      "lastSeenAt": "2026-11-22T07:59:09.705Z",
       "contentUpdatedAt": "2026-11-22T07:57:10.610Z",
       "hash": "067b156e027cf9df1c91d9e1ac6912577b5ffd8e7066bfb599c6f454bf3199b3"
     }
   ],
   "run": {
-    "at": "2026-11-22T07:57:10.610Z",
+    "at": "2026-11-22T07:59:09.705Z",
     "success": false,
     "complete": false,
     "discovered": 40,
