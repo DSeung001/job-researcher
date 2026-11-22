@@ -39,6 +39,15 @@ async function api(path: string, body?: unknown, method = "POST") {
   if (!r.ok) throw new Error(data.error ?? "요청을 처리하지 못했습니다.");
   return data;
 }
+function Icon({ symbol }: { symbol: string }) {
+  return <span aria-hidden="true">{symbol}</span>;
+}
+function period(job: ViewJob) {
+  if (job.status === "closed") return "마감";
+  if (!job.deadline) return "기간 미확인";
+  const date = job.deadline.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  return date ? "~ " + date.replaceAll("-", ".") : job.deadline;
+}
 function App() {
   const [data, setData] = useState<Dashboard | null>(null),
     [error, setError] = useState(""),
@@ -105,26 +114,10 @@ function App() {
   return (
     <main>
       <header>
-        <div className="brand">
-          Job Researcher <span>개인 채용 탐색기</span>
-        </div>
-        <button
-          onClick={() => {
-            setOrigins(state?.origins.join(", ") ?? "");
-            setSettings(!settings);
-          }}
-        >
-          설정
-        </button>
-      </header>
-      <section className="intro">
-        <div>
-          <h1>다음으로 살펴볼 회사</h1>
-          <p>지원할 수 있는 기회를 넓게 보고, 관심 가는 회사를 남겨두세요.</p>
-        </div>
-        <div className="actions">
+        <h1 className="brand">Job Researcher</h1>
+        <div className="actions header-actions">
           <button disabled={busy} onClick={() => void act("sync", {})}>
-            공고 데이터 갱신
+            데이터 갱신
           </button>
           <button
             className="primary"
@@ -133,8 +126,17 @@ function App() {
           >
             {data?.collecting ? "수집 중…" : "지금 수집"}
           </button>
+          <button
+            onClick={() => {
+              setOrigins(state?.origins.join(", ") ?? "");
+              setSettings(!settings);
+            }}
+            aria-expanded={settings}
+          >
+            설정
+          </button>
         </div>
-      </section>
+      </header>
       {error && (
         <div role="alert" className="alert">
           {error}
@@ -189,21 +191,47 @@ function App() {
           </label>
         </section>
       )}
-      <div className="health">
+      <div className="health" aria-label="최근 수집 상태">
         {data?.runs.map((r) => (
-          <span key={r.source}>
-            {r.source === "wanted" ? "원티드" : "잡코리아"}{" "}
-            <strong>
-              {!r.at ? "수집 전" : r.success ? "수집 완료" : "불완전 수집"}
-            </strong>
-            {r.at && (
-              <>
-                {" "}
-                · {new Date(r.at).toLocaleString("ko-KR")} · {r.fetched}건
-              </>
-            )}
-            {r.reason && <small> ({collectionReason(r.reason)})</small>}
-          </span>
+          <details className="collection-status" key={r.source}>
+            <summary>
+              {r.source === "wanted" ? "원티드" : "잡코리아"}{" "}
+              {!r.at ? "수집 전" : r.success ? "완료" : "일부 수집"}
+              {r.at && (
+                <>
+                  {" "}
+                  ·{" "}
+                  <time dateTime={r.at}>
+                    {new Intl.DateTimeFormat("ko-KR", {
+                      timeZone: "Asia/Seoul",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    }).format(new Date(r.at))}
+                  </time>{" "}
+                  · {r.fetched}건
+                </>
+              )}
+            </summary>
+            <div className="collection-detail">
+              {r.at && (
+                <div>
+                  {new Date(r.at).toLocaleString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                  })}
+                </div>
+              )}
+              <div>
+                {r.reason
+                  ? collectionReason(r.reason)
+                  : r.at
+                    ? "수집을 완료했습니다."
+                    : "지금 수집을 눌러 공고를 가져오세요."}
+              </div>
+            </div>
+          </details>
         ))}
       </div>
       <nav aria-label="회사 보기">
@@ -260,6 +288,9 @@ function App() {
       <div className="count">
         {groups.length}개 회사 · {groups.reduce((n, g) => n + g.jobs.length, 0)}
         개 공고
+        <span className="list-hint">
+          공고명을 눌러 모집 내용 보기 · ☆ 관심 · » 스킵 · ✓ 지원완료
+        </span>
       </div>
       {!data ? (
         <p>공고를 불러오는 중입니다.</p>
@@ -286,12 +317,15 @@ function App() {
                 <div>
                   <h2>{jobs[0].companyName}</h2>
                   <span className="muted">
-                    공고 {jobs.length}개 · 통근{" "}
-                    {commute ? `${commute.minutes}분` : "미확인"}
+                    공고 {jobs.length}개
+                    {commute ? ` · 통근 ${commute.minutes}분` : ""}
                   </span>
                 </div>
                 <div className="actions">
                   <button
+                    className="icon-button"
+                    title={flags?.isInterested ? "관심 해제" : "관심 회사"}
+                    aria-label={flags?.isInterested ? "관심 해제" : "관심 회사"}
                     aria-pressed={!!flags?.isInterested}
                     disabled={busy}
                     onClick={() =>
@@ -302,9 +336,13 @@ function App() {
                       )
                     }
                   >
-                    {flags?.isInterested ? "관심 해제" : "관심 회사"}
+                    <Icon symbol={flags?.isInterested ? "★" : "☆"} />
                   </button>
                   <button
+                    className="icon-button"
+                    title={flags?.isSkipped ? "스킵 해제" : "회사 스킵"}
+                    aria-label={flags?.isSkipped ? "스킵 해제" : "회사 스킵"}
+                    aria-pressed={!!flags?.isSkipped}
                     disabled={busy}
                     onClick={() =>
                       void act(
@@ -314,109 +352,141 @@ function App() {
                       )
                     }
                   >
-                    {flags?.isSkipped ? "스킵 해제" : "회사 스킵"}
+                    <Icon symbol="»" />
                   </button>
                 </div>
               </div>
               {jobs.map((job) => (
                 <section className="job" key={job.key}>
-                  <div className="job-title">
-                    <a href={job.url} target="_blank" rel="noreferrer">
-                      {job.title}
-                    </a>
-                    {job.isNew && <span className="badge">신규</span>}
-                    {job.isUpdated && <span className="badge">수정</span>}
-                    <span className="muted">
-                      {job.status === "closed"
-                        ? "마감"
-                        : job.status === "unknown"
-                          ? "채용 상태 미확인"
-                          : ""}
-                    </span>
-                  </div>
-                  <p className="muted">
-                    {job.source === "wanted" ? "원티드" : "잡코리아"} ·{" "}
-                    {job.location || "위치 미확인"} · 경력{" "}
-                    {job.minYears === null
-                      ? "미확인"
-                      : `${job.minYears}년 이상`}
-                  </p>
-                  <p className="reasons">
-                    {job.reasons.join(" / ") ||
-                      "적합 조건을 직접 확인해 주세요."}
-                  </p>
-                  <details>
-                    <summary>공고 내용</summary>
-                    <p className="description">{job.description}</p>
-                  </details>
-                  <label className="applied">
-                    <input
-                      type="checkbox"
-                      checked={job.isApplied}
-                      onChange={(e) =>
-                        void act(
-                          "job",
-                          { key: job.key, isApplied: e.target.checked },
-                          "PATCH",
-                        )
-                      }
-                    />
-                    지원 완료
-                  </label>
-                </section>
-              ))}
-              <div className="company-footer">
-                <button
-                  onClick={() => {
-                    const value = prompt(
-                      "두 출발역 중 더 빠른 통근 시간(분)",
-                      String(commute?.minutes ?? ""),
-                    );
-                    if (value !== null && value.trim())
-                      void act("commute", { key, minutes: Number(value) });
-                  }}
-                >
-                  통근 시간 기록
-                </button>
-                {state?.origins.map((origin) => (
-                  <a
-                    key={origin}
-                    href={`https://map.naver.com/p/search/${encodeURIComponent(origin + "에서 " + jobs[0].location)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {origin} 경로 확인
-                  </a>
-                ))}
-                <details>
-                  <summary>같은 회사 연결</summary>
-                  <label>
-                    다른 이름이나 사이트로 등록된 회사를 선택하세요.
-                    <select
-                      aria-label="연결할 회사"
-                      value=""
-                      onChange={(e) => {
-                        if (e.target.value)
-                          void act("link", { from: e.target.value, to: key });
+                  <details className="job-details">
+                    <summary
+                      onClick={(event) => {
+                        const details = event.currentTarget
+                          .parentElement as HTMLDetailsElement;
+                        if (
+                          details.open &&
+                          details.getBoundingClientRect().top < 0
+                        ) {
+                          event.preventDefault();
+                          details.open = false;
+                          details.scrollIntoView({
+                            block: "start",
+                            behavior: "instant",
+                          });
+                        }
                       }}
                     >
-                      <option value="">회사 선택</option>
-                      {[
-                        ...new Map(
-                          (data?.jobs ?? []).map((j) => [j.companyKey, j]),
-                        ).values(),
-                      ]
-                        .filter((j) => j.companyKey !== key)
-                        .map((j) => (
-                          <option key={j.companyKey} value={j.companyKey}>
-                            {j.companyName} (
-                            {j.source === "wanted" ? "원티드" : "잡코리아"})
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                </details>
-              </div>
+                      <span className="job-title-text">{job.title}</span>
+                      {job.isNew && <span className="badge">신규</span>}
+                      {job.isUpdated && <span className="badge">수정</span>}
+                      <span className="period">{period(job)}</span>
+                      <span className="collapse-label">접기</span>
+                      <span className="chevron" aria-hidden="true">
+                        ⌄
+                      </span>
+                    </summary>
+                    <div className="job-content">
+                      <p className="muted">
+                        {job.source === "wanted" ? "원티드" : "잡코리아"} ·{" "}
+                        {job.location || "위치 미확인"} · 경력{" "}
+                        {job.minYears === null
+                          ? "미확인"
+                          : job.minYears + "년 이상"}
+                        {job.status === "unknown" ? " · 채용 상태 미확인" : ""}
+                      </p>
+                      <p className="reasons">
+                        {job.reasons.join(" / ") ||
+                          "적합 조건을 직접 확인해 주세요."}
+                      </p>
+                      <h3>모집 내용</h3>
+                      <p className="description">
+                        {job.description.trim() ||
+                          "저장된 모집 내용이 없습니다. 지금 수집으로 내용을 갱신하거나 원문을 확인해 주세요."}
+                      </p>
+                      <div className="content-source">
+                        <span>
+                          저장된 공고 · 마지막 확인{" "}
+                          {new Date(job.lastSeenAt).toLocaleDateString("ko-KR")}
+                        </span>
+                        <a href={job.url} target="_blank" rel="noreferrer">
+                          원문 보기 ↗
+                        </a>
+                      </div>
+                    </div>
+                  </details>
+                  <button
+                    className="icon-button applied-button"
+                    title={job.isApplied ? "지원 완료 해제" : "지원 완료"}
+                    aria-label={job.isApplied ? "지원 완료 해제" : "지원 완료"}
+                    aria-pressed={job.isApplied}
+                    disabled={busy}
+                    onClick={() =>
+                      void act(
+                        "job",
+                        { key: job.key, isApplied: !job.isApplied },
+                        "PATCH",
+                      )
+                    }
+                  >
+                    <Icon symbol="✓" />
+                  </button>
+                </section>
+              ))}
+              <details className="company-tools">
+                <summary>회사 관리</summary>
+                <div className="company-footer">
+                  <button
+                    onClick={() => {
+                      const value = prompt(
+                        "두 출발역 중 더 빠른 통근 시간(분)",
+                        String(commute?.minutes ?? ""),
+                      );
+                      if (value !== null && value.trim())
+                        void act("commute", { key, minutes: Number(value) });
+                    }}
+                  >
+                    통근 시간 기록
+                  </button>
+                  {state?.origins.map((origin) => (
+                    <a
+                      key={origin}
+                      href={`https://map.naver.com/p/search/${encodeURIComponent(origin + "에서 " + jobs[0].location)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {origin} 경로 확인
+                    </a>
+                  ))}
+                  <details>
+                    <summary>같은 회사 연결</summary>
+                    <label>
+                      다른 이름이나 사이트로 등록된 회사를 선택하세요.
+                      <select
+                        aria-label="연결할 회사"
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value)
+                            void act("link", { from: e.target.value, to: key });
+                        }}
+                      >
+                        <option value="">회사 선택</option>
+                        {[
+                          ...new Map(
+                            (data?.jobs ?? []).map((j) => [j.companyKey, j]),
+                          ).values(),
+                        ]
+                          .filter((j) => j.companyKey !== key)
+                          .map((j) => (
+                            <option key={j.companyKey} value={j.companyKey}>
+                              {j.companyName} (
+                              {j.source === "wanted" ? "원티드" : "잡코리아"})
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  </details>
+                </div>
+              </details>
             </article>
           );
         })
