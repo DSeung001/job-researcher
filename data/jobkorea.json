@@ -275,13 +275,13 @@
     }
   ],
   "run": {
-    "at": "2026-11-22T08:34:31.246Z",
+    "at": "2026-11-22T08:36:55.758Z",
     "success": false,
     "complete": false,
     "discovered": 27,
-    "fetched": 2,
+    "fetched": 0,
     "failed": 0,
-    "filtered": 6,
+    "filtered": 3,
     "reason": "detail-limit"
   }
 }
