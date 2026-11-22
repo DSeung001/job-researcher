@@ -1,24 +1,24 @@
 [
   {
     "source": "jobkorea",
-    "at": "2026-11-22T08:32:11.712Z",
+    "at": "2026-11-22T08:34:31.246Z",
     "success": false,
     "complete": false,
-    "discovered": 28,
-    "fetched": 5,
+    "discovered": 27,
+    "fetched": 2,
     "failed": 0,
-    "filtered": 3,
+    "filtered": 6,
     "reason": "detail-limit"
   },
   {
     "source": "wanted",
-    "at": "2026-11-22T08:32:23.717Z",
+    "at": "2026-11-22T08:34:48.073Z",
     "success": false,
     "complete": false,
-    "discovered": 43,
-    "fetched": 6,
+    "discovered": 0,
+    "fetched": 0,
     "failed": 0,
-    "filtered": 2,
-    "reason": "detail-limit"
+    "filtered": 0,
+    "reason": "listing-http-403"
   }
 ]

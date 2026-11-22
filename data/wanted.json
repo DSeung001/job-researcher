@@ -142,13 +142,13 @@
     }
   ],
   "run": {
-    "at": "2026-11-22T08:32:23.717Z",
+    "at": "2026-11-22T08:34:48.073Z",
     "success": false,
     "complete": false,
-    "discovered": 43,
-    "fetched": 6,
+    "discovered": 0,
+    "fetched": 0,
     "failed": 0,
-    "filtered": 2,
-    "reason": "detail-limit"
+    "filtered": 0,
+    "reason": "listing-http-403"
   }
 }
