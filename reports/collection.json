@@ -1,0 +1,22 @@
+[
+  {
+    "source": "jobkorea",
+    "at": "2026-11-22T07:57:10.610Z",
+    "success": false,
+    "complete": false,
+    "discovered": 40,
+    "fetched": 3,
+    "failed": 0,
+    "reason": "detail-limit"
+  },
+  {
+    "source": "wanted",
+    "at": "2026-11-22T07:57:16.491Z",
+    "success": false,
+    "complete": false,
+    "discovered": 0,
+    "fetched": 0,
+    "failed": 0,
+    "reason": "listing-http-403"
+  }
+]

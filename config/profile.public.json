@@ -1,0 +1,52 @@
+{
+  "roles": [
+    "백엔드",
+    "backend",
+    "back-end",
+    "서버",
+    "플랫폼",
+    "platform",
+    "devops",
+    "풀스택",
+    "fullstack",
+    "full-stack",
+    "검색",
+    "rag"
+  ],
+  "skills": [
+    "Go",
+    "Python",
+    "Django",
+    "PHP",
+    "Laravel",
+    "PostgreSQL",
+    "Redis",
+    "Celery",
+    "AWS",
+    "FFmpeg",
+    "HLS",
+    "RAG"
+  ],
+  "domains": [
+    "콘텐츠",
+    "컨텐츠",
+    "미디어",
+    "동영상",
+    "영상",
+    "OTT",
+    "SNS",
+    "소셜",
+    "커뮤니티",
+    "이커머스",
+    "커머스",
+    "쇼핑"
+  ],
+  "trafficSignals": [
+    "대규모 트래픽",
+    "대용량",
+    "고가용성",
+    "분산 시스템",
+    "대규모 사용자"
+  ],
+  "experienceYears": 6
+}
