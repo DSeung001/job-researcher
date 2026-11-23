@@ -1,13 +1,13 @@
 [
   {
     "source": "wanted",
-    "at": "2026-11-23T05:04:02.654Z",
+    "at": "2026-11-23T05:33:03.787Z",
     "success": false,
     "complete": false,
-    "discovered": 1555,
-    "fetched": 157,
+    "discovered": 1558,
+    "fetched": 43,
     "failed": 0,
-    "filtered": 194,
-    "reason": "time-budget"
+    "filtered": 17,
+    "reason": "detail-limit"
   }
 ]

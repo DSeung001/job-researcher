@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import { z } from "zod";
 import type { Job, Source } from "./model.js";
 import profile from "../config/profile.public.json";
+import type { Candidate } from "./collection-order.js";
 import { isCandidateTitle } from "./matching.js";
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function fetchHtml(url: string, options: RequestInit = {}) {
@@ -244,6 +245,7 @@ export type Discovery = {
 export async function discoverWanted(
   limit: number,
   deadline = Infinity,
+  onCandidate: (candidate: Candidate) => void = () => {},
 ): Promise<Discovery> {
   const ids = new Set<string>();
   const pages = new Set<string>();
@@ -255,7 +257,13 @@ export async function discoverWanted(
     try {
       const listing = z
         .object({
-          data: z.array(z.object({ id: z.number(), position: z.string() })),
+          data: z.array(
+            z.object({
+              id: z.number(),
+              position: z.string(),
+              company: z.object({ id: z.number() }).optional(),
+            }),
+          ),
           links: z.object({ next: z.string().nullable() }),
         })
         .parse(JSON.parse(await fetchHtml(url!)));
@@ -267,7 +275,14 @@ export async function discoverWanted(
         return { ids: [...ids], complete: false, reason: "repeated-page" };
       pages.add(signature);
       for (const job of listing.data)
-        if (relevant(job.position)) ids.add(String(job.id));
+        if (relevant(job.position)) {
+          ids.add(String(job.id));
+          onCandidate({
+            id: String(job.id),
+            title: job.position,
+            companyId: job.company ? String(job.company.id) : undefined,
+          });
+        }
       if (!listing.links.next)
         return { ids: [...ids], complete: true, reason: null };
       const next: URL = new URL(listing.links.next, url!);
@@ -288,6 +303,7 @@ export async function discoverWanted(
 export async function discoverJobkorea(
   limit: number,
   deadline = Infinity,
+  onCandidate: (candidate: Candidate) => void = () => {},
 ): Promise<Discovery> {
   const ids = new Set<string>();
   const pages = new Set<string>();
@@ -302,11 +318,11 @@ export async function discoverJobkorea(
           method: "POST",
           headers: {
             Referer:
-              "https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&duty=1000229,1000231",
+              "https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&duty=1000229,1000231,1000239,1000423",
             "X-Requested-With": "XMLHttpRequest",
           },
           body: new URLSearchParams({
-            "condition[duty]": "1000229,1000231",
+            "condition[duty]": "1000229,1000231,1000239,1000423",
             "condition[menucode]": "",
             page: String(page),
             pagesize: "40",
@@ -329,6 +345,15 @@ export async function discoverJobkorea(
       .map((el) => ({
         href: $(el).attr("href") ?? "",
         text: $(el).text().trim(),
+        companyId: $(el)
+          .closest("tr")
+          .find('.tplCo a[href*="/Recruit/Co_Read/" i]')
+          .first()
+          .attr("href")
+          ?.split("?")[0]
+          .split("/")
+          .filter(Boolean)
+          .at(-1),
       }));
     if (!links.length) {
       if (!ids.size)
@@ -347,7 +372,10 @@ export async function discoverJobkorea(
     pages.add(signature);
     for (const link of links) {
       const id = link.href.match(/GI_Read\/(\d+)/i)?.[1];
-      if (id && isCandidateTitle(link.text)) ids.add(id);
+      if (id && isCandidateTitle(link.text)) {
+        ids.add(id);
+        onCandidate({ id, title: link.text, companyId: link.companyId });
+      }
     }
     const next = $("a[data-page]")
       .toArray()

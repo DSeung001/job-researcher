@@ -10,6 +10,7 @@ import {
   listingFailure,
 } from "./collectors.js";
 import type { Job } from "./model.js";
+import { diverseCandidates, type Candidate } from "./collection-order.js";
 import { classifyJob } from "./matching.js";
 import { limitReason } from "./collection-status.js";
 import {
@@ -37,25 +38,29 @@ export async function collect(options: CollectionOptions = {}) {
       let complete = false;
       let reason: string | null = null;
       try {
+        const metadata = new Map<string, Candidate>();
         const discovery = await (
           source === "wanted" ? discoverWanted : discoverJobkorea
-        )(options.maxPages ?? 250, deadline);
+        )(options.maxPages ?? 250, deadline, (candidate) =>
+          metadata.set(candidate.id, candidate),
+        );
         discovered = discovery.ids.length;
         complete = discovery.complete;
         reason = discovery.reason;
-        const candidates = [
-          ...new Set([
-            ...discovery.ids,
+        const candidates = diverseCandidates(
+          [
             ...old.jobs
-              .filter((j) => j.status !== "closed" && classifyJob(j) !== null)
-              .map((j) => j.id),
-          ]),
-        ];
-        const previous = new Map(old.jobs.map((j) => [j.id, j]));
-        candidates.sort((a, b) =>
-          (checkedAtById[a] ?? previous.get(a)?.lastSeenAt ?? "").localeCompare(
-            checkedAtById[b] ?? previous.get(b)?.lastSeenAt ?? "",
-          ),
+              .filter(
+                (job) => job.status !== "closed" && classifyJob(job) !== null,
+              )
+              .map((job) => ({
+                id: job.id,
+                title: job.title,
+                companyId: job.companyId,
+              })),
+            ...discovery.ids.map((id) => metadata.get(id) ?? { id, title: "" }),
+          ],
+          old,
         );
         const targets = candidates.slice(0, options.maxDetails ?? Infinity);
         if (targets.length < candidates.length) {
@@ -77,6 +82,9 @@ export async function collect(options: CollectionOptions = {}) {
           }
           checkedAtById[id] = now;
           if ((jobs.length + failed + filtered) % 25 === 0) {
+            console.log(
+              `${source}: checked=${jobs.length + failed + filtered}/${targets.length}, saved=${jobs.length}, filtered=${filtered}, failed=${failed}`,
+            );
             await atomicJson(`data/${source}.json`, {
               jobs: mergeJobs(old.jobs, jobs, now),
               checkedAtById,

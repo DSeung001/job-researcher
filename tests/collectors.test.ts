@@ -33,7 +33,10 @@ test("Jobkorea uses the public paging POST and reads fragment pagination", async
       assert.equal(url, "https://www.jobkorea.co.kr/Recruit/Home/_GI_List/");
       assert.equal(options.method, "POST");
       const body = options.body as URLSearchParams;
-      assert.equal(body.get("condition[duty]"), "1000229,1000231");
+      assert.equal(
+        body.get("condition[duty]"),
+        "1000229,1000231,1000239,1000423",
+      );
       assert.equal(body.get("condition[menucode]"), "");
       const page = body.get("page")!;
       requested.push(page);
@@ -214,4 +217,24 @@ test("collection CLI selects sources and rejects invalid limits", () => {
     ["--other", "1"],
   ])
     assert.throws(() => parseCollectionOptions(args));
+});
+
+test("Wanted discovery supplies public company metadata for diverse selection", async (t) => {
+  t.mock.method(globalThis, "fetch", async () =>
+    Response.json({
+      data: [
+        {
+          id: 1,
+          position: "백엔드 개발자",
+          company: { id: 42, name: "Example" },
+        },
+      ],
+      links: { next: null },
+    }),
+  );
+  const candidates: unknown[] = [];
+  await discoverWanted(1, Infinity, (job) => candidates.push(job));
+  assert.deepEqual(candidates, [
+    { id: "1", title: "백엔드 개발자", companyId: "42" },
+  ]);
 });
