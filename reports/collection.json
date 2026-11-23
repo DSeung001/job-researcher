@@ -1,18 +1,18 @@
 [
   {
     "source": "jobkorea",
-    "at": "2026-11-22T23:56:29.192Z",
+    "at": "2026-11-23T04:25:32.690Z",
     "success": false,
     "complete": false,
-    "discovered": 30,
-    "fetched": 24,
+    "discovered": 82,
+    "fetched": 1,
     "failed": 0,
-    "filtered": 7,
-    "reason": "repeated-page"
+    "filtered": 2,
+    "reason": "detail-limit"
   },
   {
     "source": "wanted",
-    "at": "2026-11-22T23:57:20.044Z",
+    "at": "2026-11-23T04:25:41.338Z",
     "success": false,
     "complete": false,
     "discovered": 0,

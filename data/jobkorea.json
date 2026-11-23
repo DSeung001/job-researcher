@@ -644,6 +644,35 @@
       "lastSeenAt": "2026-11-22T07:59:09.705Z",
       "contentUpdatedAt": "2026-11-22T07:57:10.610Z",
       "hash": "067b156e027cf9df1c91d9e1ac6912577b5ffd8e7066bfb599c6f454bf3199b3"
+    },
+    {
+      "key": "jobkorea:50413585",
+      "source": "jobkorea",
+      "id": "50413585",
+      "companyId": "name-제이윈파트너스",
+      "companyName": "제이윈파트너스",
+      "title": "Java 개발자 신입/경력 채용",
+      "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/50413585",
+      "location": "서울 서초구 서운로 20 (서초동, 효봉빌딩) 6층",
+      "description": "제이윈파트너스에서 정규직 신입·경력 채용을 진행합니다. 근무지는 서울 서초구 서운로 20 (서초동, 효봉빌딩)이며, 자세한 조건은 공고를 통해 확인할 수 있습니다.\n\n모집부문 및 자격요건 모집부문 자격요건 및 우대사항 공통 java 개발자신입(2명) [자격요건] - 학력 : 전문대졸 이상 (관련학과 우대) - Java/Spring framework를 이용한 Web Application 개발 경험자 - html, css, javascript 사용 경험자 - Git 등 버전 관리 시스템 사용 경험자 - Oracle, MYSQL 등의 RDBMS 사용 경험자 - RESTful API에 대한 기본적인 지식 보유자- AI 개발 도구를 활용하여 소스 코드 구조와 로직을 분석 및 개발 할 수 있는 자 [우대사항] - 컴퓨터 공학 전공 또는 관련 분야 학위 소지자 - 정보처리기사 보유자 - Spring Boot를 이용한 Web Application 개발 경험자 - 프론트엔드 프레임워크(react, Vue.js) 사용 경험자 - 빌드/테스트/배포 자동화 경험자- ChatGPT, Codex 등 바이브 코딩(Vibe Coding) 경험이 있는 자 [주요업무] - Java 기반 웹 어플리케이션 개발- 데이터베이스 관리-API 설계 및 구현- 시스템 성능 최적화- 사용자 경험 개선 - 코드 리뷰 및 유지보수 Java 개발자 경력(3명) [자격요건] - 학력: 전문대졸 이상 (관련 학과 우대)- 경력: 3년 이상- 기술 스택에 대한 이해 및 실무 경험 보유자 Language: Java, JavaScript Framework: Spring (Boot, Cloud), Maven/Gradle, React/Next.js, Vue.js, Node.js Infrastructure: AWS, Azure, KT Cloud, Naver Cloud Database: Oracle, PostgreSQL, MySQL, MongoDB, Redis CI/CD: Jenkins, Git, SVN Middleware: JBoss Wildfly, Tomcat, Nginx, Apache- AI도구를 활용하여 기존 소스 분석, 기능 개선 및 유지보수 업무 수행이 가능한 자 [우대사항] - 프로젝트 리딩 경험 및 팀 단위 개발 주도 경험- DB 쿼리 분석 및 성능 최적화 경험- RESTful API 설계 및 외부 연동 시스템 개발 경험- ChatGPT, Codex 등 바이브 코딩(Vibe Coding) 경험이 있는 자 [주요업무]- 웹 기반 시스템 서비스 개발 및 운영·유지보수- 기존 소스 코드 분석 및 오류 수정, 기능 개선- 서비스 기능 개선 및 신규 요구사항에 따른 기능 개발 복리후생 입사자 전원 웰컴 킷 지급 직원 대출제도 직무관련 교육비 지원 상, 하반기 체육행사 등 행사 진행 (년 2회) 생일자 축하 행사 신규 아이패드 및 아이펜슬 지급 Team work building 월별 진행 (총 8회) Home comming day 분기별 진행 (총 4회) 연차 사용 의무화 (자유로운 연차사용) 콘도 사용 (대명콘도, 세인트존스, 라카이샌드파인 리조트 회원권 보유) 근무지 근무지 : 서울 서초구 서운로 20 (서초동) 6층, 효봉빌딩 전형절차 * 면접일정은 추후 통보됩니다. 유의사항 허위사실이 발견될 경우 채용이 취소될 수 있습니다.",
+      "skills": [
+        "Go",
+        "Java",
+        "Spring",
+        "Vue",
+        "PostgreSQL",
+        "MySQL",
+        "Redis",
+        "AWS"
+      ],
+      "minYears": null,
+      "maxYears": null,
+      "deadline": "2026-12-23T23:59",
+      "status": "open",
+      "firstSeenAt": "2026-11-23T04:25:32.690Z",
+      "lastSeenAt": "2026-11-23T04:25:32.690Z",
+      "contentUpdatedAt": "2026-11-23T04:25:32.690Z",
+      "hash": "b0aa9a38a52a7bc1c3a12a30b8669c98a009ff9388e337c0fa5298bf9cc345ce"
     }
   ],
   "checkedAtById": {
@@ -666,8 +695,10 @@
     "50373097": "2026-11-22T23:56:29.192Z",
     "50373199": "2026-11-22T23:56:29.192Z",
     "50377164": "2026-11-22T23:56:29.192Z",
+    "50380926": "2026-11-23T04:25:32.690Z",
     "50381082": "2026-11-22T23:56:29.192Z",
     "50382755": "2026-11-22T23:56:29.192Z",
+    "50384727": "2026-11-23T04:25:32.690Z",
     "50387103": "2026-11-22T23:56:29.192Z",
     "50392674": "2026-11-22T23:56:29.192Z",
     "50394279": "2026-11-22T23:56:29.192Z",
@@ -677,16 +708,17 @@
     "50404522": "2026-11-22T23:56:29.192Z",
     "50405610": "2026-11-22T23:56:29.192Z",
     "50406888": "2026-11-22T23:56:29.192Z",
-    "50408420": "2026-11-22T23:56:29.192Z"
+    "50408420": "2026-11-22T23:56:29.192Z",
+    "50413585": "2026-11-23T04:25:32.690Z"
   },
   "run": {
-    "at": "2026-11-22T23:56:29.192Z",
+    "at": "2026-11-23T04:25:32.690Z",
     "success": false,
     "complete": false,
-    "discovered": 30,
-    "fetched": 24,
+    "discovered": 82,
+    "fetched": 1,
     "failed": 0,
-    "filtered": 7,
-    "reason": "repeated-page"
+    "filtered": 2,
+    "reason": "detail-limit"
   }
 }
