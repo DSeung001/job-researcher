@@ -8,7 +8,6 @@ Node.js 24 이상과 Git이 필요합니다.
 
 ```sh
 npm ci
-npx playwright install chromium
 npm run dev
 ```
 

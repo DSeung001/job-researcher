@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +28,6 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
       - run: npm run check
       - name: Collect
         id: collect
