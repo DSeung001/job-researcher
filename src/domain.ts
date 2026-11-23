@@ -52,15 +52,26 @@ export function scoreJob(job: Job, state: State) {
   );
   score += Math.min(30, skills.length * 6);
   if (skills.length) reasons.push(`기술: ${skills.join(", ")}`);
-  if (
-    job.minYears !== null &&
-    job.minYears <= profile.experienceYears &&
-    (job.maxYears === null || job.maxYears >= profile.experienceYears)
-  ) {
+  const years = profile.experienceYears;
+  // Wanted encodes "no upper bound" as 100.
+  const maxYears =
+    job.maxYears !== null && job.maxYears < 100 ? job.maxYears : null;
+  const juniorTitle =
+    job.minYears === null &&
+    maxYears === null &&
+    /신입|인턴|주니어|junior|intern/i.test(job.title);
+  if ((maxYears !== null && maxYears < years) || juniorTitle) {
+    score -= 15;
+    reasons.push("주니어 대상 공고");
+  } else if (job.minYears !== null && job.minYears >= years + 2) {
+    score -= 15;
+    reasons.push(`요구 경력 ${job.minYears}년 이상`);
+  } else if (job.minYears !== null && job.minYears > years)
+    reasons.push(`요구 경력 ${job.minYears}년 (확인)`);
+  else if (job.minYears !== null) {
     score += 15;
     reasons.push("경력 범위 적합");
-  } else if (job.minYears !== null && job.minYears > profile.experienceYears)
-    reasons.push("요구 경력 확인 필요");
+  }
   const domains = profile.domains.filter((d) => text.includes(d.toLowerCase()));
   if (domains.length) {
     score += 8;
@@ -76,7 +87,7 @@ export function scoreJob(job: Job, state: State) {
     reasons.push("통근 40분 이내");
   }
   return {
-    score,
+    score: Math.max(0, score),
     reasons,
     isNew: !state.lastReviewedAt || job.firstSeenAt > state.lastReviewedAt,
     isUpdated:

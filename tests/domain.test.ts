@@ -8,6 +8,7 @@ import {
   publicText,
   relevant,
   deadlineTime,
+  parseYears,
 } from "../src/collectors.js";
 import { inspectPublicFile } from "../src/privacy.js";
 const sample: Job = {
@@ -103,4 +104,33 @@ test("source deadlines are interpreted in Korea on any runner timezone", () => {
     Date.parse("2026-12-01T14:59:00Z"),
   );
   assert.equal(deadlineTime("2026-12-01"), Date.parse("2026-12-01T14:59:59Z"));
+});
+test("Jobkorea reads years from the meta summary when JSON-LD says only 경력", () => {
+  const ld = (exp: string) =>
+    `<script type="application/ld+json">${JSON.stringify({ "@type": "JobPosting", title: "Backend", hiringOrganization: { name: "Example" }, description: "백엔드 개발 경력 3년 이상", experienceRequirements: exp })}</script>`;
+  const meta = `<meta name="description" content="경력 : 경력 5년이상, 학력 : 초대졸↑, 마감일 : 2026.12.07"/>`;
+  const fromMeta = parseJobkorea(meta + ld("경력"), "1").job;
+  assert.equal(fromMeta.minYears, 5);
+  assert.equal(fromMeta.maxYears, null);
+  assert.equal(parseJobkorea(ld("경력"), "1").job.minYears, 3);
+  assert.deepEqual(parseYears("경력 3~10년"), { min: 3, max: 10, known: true });
+  assert.deepEqual(parseYears("신입"), { min: 0, max: 0, known: true });
+  assert.deepEqual(parseYears("경력무관"), { min: null, max: null, known: true });
+  assert.deepEqual(parseYears("신입·경력"), { min: null, max: null, known: true });
+  assert.equal(parseYears("경력").known, false);
+});
+test("experience outside 6 years is penalized; 7 years is allowed", () => {
+  const state = emptyState();
+  const score = (patch: Partial<Job>) => scoreJob({ ...sample, ...patch }, state);
+  const fit = score({ minYears: 5, maxYears: 100 });
+  assert.ok(fit.reasons.includes("경력 범위 적합"));
+  const junior = score({ minYears: 1, maxYears: 3 });
+  assert.equal(junior.score, fit.score - 30);
+  assert.ok(junior.reasons.includes("주니어 대상 공고"));
+  assert.ok(
+    score({ title: "주니어 백엔드", minYears: null, maxYears: null }).reasons.includes("주니어 대상 공고"),
+  );
+  assert.equal(score({ minYears: 7, maxYears: null }).score, fit.score - 15);
+  assert.equal(score({ minYears: 8, maxYears: null }).score, fit.score - 30);
+  assert.ok(score({ title: "x", description: "", minYears: 10, maxYears: null }).score >= 0);
 });

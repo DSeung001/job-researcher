@@ -169,6 +169,21 @@ export function deadlineTime(value: string): number {
         : value + "+09:00",
   );
 }
+export function parseYears(text: string): {
+  min: number | null;
+  max: number | null;
+  known: boolean;
+} {
+  if (/경력\s*무관|신입\s*[·/,및]\s*경력|경력\s*[·/,및]\s*신입/.test(text))
+    return { min: null, max: null, known: true };
+  const range = text.match(/(\d+)\s*년?\s*[~～-]\s*(\d+)\s*년/);
+  if (range)
+    return { min: Number(range[1]), max: Number(range[2]), known: true };
+  const min = text.match(/(\d+)\s*년/);
+  if (min) return { min: Number(min[1]), max: null, known: true };
+  if (/신입/.test(text)) return { min: 0, max: 0, known: true };
+  return { min: null, max: null, known: false };
+}
 export function parseJobkorea(
   html: string,
   id: string,
@@ -213,11 +228,18 @@ export function parseJobkorea(
         ? "closed"
         : "open"
       : "unknown";
-  const years = String(data.experienceRequirements ?? "").match(
-    /(\d+)\s*년(?:\s*[~～-]\s*(\d+)\s*년?)?/,
-  );
-  j.minYears = years ? Number(years[1]) : null;
-  j.maxYears = years?.[2] ? Number(years[2]) : null;
+  // JSON-LD often says only "경력"; the meta summary carries "경력 : 경력 5년이상".
+  const summary =
+    $('meta[name="description"]')
+      .attr("content")
+      ?.match(/경력\s*:\s*([^,]+)/)?.[1] ?? "";
+  const bodyYears =
+    j.description.match(/경력\s*\d+\s*년\s*(?:이상|↑)/)?.[0] ?? "";
+  const years = [summary, String(data.experienceRequirements ?? ""), bodyYears]
+    .map(parseYears)
+    .find((y) => y.known) ?? { min: null, max: null };
+  j.minYears = years.min;
+  j.maxYears = years.max;
   j.skills = profile.skills.filter((s) =>
     j.description.toLowerCase().includes(s.toLowerCase()),
   );
