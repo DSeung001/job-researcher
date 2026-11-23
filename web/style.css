@@ -369,20 +369,6 @@ footer {
   padding-bottom: 8px;
   gap: 8px;
 }
-.company-head > div:first-child {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  min-width: 0;
-}
-.company-head h2 {
-  font-size: 16px;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-.company-head .muted {
-  white-space: nowrap;
-}
 .company-head .actions {
   flex-wrap: nowrap;
   gap: 4px;
@@ -493,9 +479,6 @@ footer {
     flex-direction: row;
     align-items: center;
   }
-  .company-head > div:first-child {
-    display: block;
-  }
   .job-details > summary {
     flex-wrap: wrap;
     gap: 4px 8px;
@@ -594,5 +577,81 @@ nav button {
 @media (max-width: 700px) {
   .job-details[open] .job-title-text {
     flex-basis: 100%;
+  }
+}
+
+/* A collapsed company occupies one row; listings remain grouped underneath. */
+.company-head {
+  padding-bottom: 0;
+}
+.company-toggle {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) auto 112px 16px;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.company-toggle:hover {
+  background: transparent;
+  color: var(--accent);
+}
+.company-name,
+.company-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+}
+.company-name {
+  font-weight: 700;
+}
+.company-count {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.company-toggle .period {
+  margin-left: 0;
+  text-align: right;
+}
+.company-toggle[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+.company-head:has(.company-toggle[aria-expanded="true"]) {
+  padding-bottom: 8px;
+}
+@media (max-width: 700px) {
+  .company-toggle {
+    grid-template-columns: minmax(0, 1fr) auto 16px;
+    gap: 4px 8px;
+  }
+  .company-name {
+    grid-column: 1;
+  }
+  .company-preview {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .company-count {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .company-toggle .period {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 14px;
+  }
+  .company-toggle .chevron {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    margin-left: 0;
   }
 }

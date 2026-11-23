@@ -7,6 +7,7 @@ import {
   discoverJobkorea,
   getDetail,
   sleep,
+  listingFailure,
 } from "./collectors.js";
 import type { Job, Source } from "./model.js";
 import { classifyJob } from "./matching.js";
@@ -95,9 +96,7 @@ export async function collect(
           reason = "detail-failures";
         }
       } catch (e) {
-        const status =
-          e instanceof Error ? e.message.match(/HTTP (\d{3})/)?.[1] : null;
-        reason = status ? `listing-http-${status}` : "listing-failed";
+        reason = listingFailure(e);
         complete = false;
       }
       const run = {
@@ -117,7 +116,7 @@ export async function collect(
       });
       results.push({ source, ...run });
       console.log(
-        `${source}: ${jobs.length}/${discovered}, complete=${complete}, ${reason ?? "ok"}`,
+        `${source}: discovered=${discovered}, fetched=${jobs.length}, filtered=${filtered}, failed=${failed}, complete=${complete}, ${reason ?? "ok"}`,
       );
     }
     await atomicJson("reports/collection.json", results);

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Job, State, Run } from "../src/model";
 import "./style.css";
+import { statusLabel } from "../src/collection-status";
 type ViewJob = Job & {
   score: number;
   reasons: string[];
@@ -20,15 +21,19 @@ type Dashboard = {
 const collectionReason = (reason: string | null) =>
   reason === "listing-http-403"
     ? "사이트에서 자동 접근을 제한했습니다."
-    : reason === "detail-limit" ||
-        reason === "page-limit" ||
-        reason === "scroll-limit"
-      ? "설정된 수집 범위까지 확인했습니다."
-      : reason === "repeated-page"
-        ? "목록이 반복되어 수집을 멈췄습니다."
-        : reason
-          ? "일부 공고를 확인하지 못했습니다."
-          : "";
+    : reason === "time-budget"
+      ? "이번 실행의 수집 시간을 모두 사용했습니다. 다음 실행에서 이어서 확인합니다."
+      : reason === "detail-failures"
+        ? "일부 공고의 상세 내용을 확인하지 못했습니다."
+        : reason === "detail-limit" ||
+            reason === "page-limit" ||
+            reason === "scroll-limit"
+          ? "설정된 수집 범위까지 확인했습니다."
+          : reason === "repeated-page"
+            ? "목록이 반복되어 수집을 멈췄습니다."
+            : reason
+              ? "일부 공고를 확인하지 못했습니다."
+              : "";
 async function api(path: string, body?: unknown, method = "POST") {
   const r = await fetch("/api/" + path, {
     method: body === undefined ? "GET" : method,
@@ -59,7 +64,10 @@ function App() {
     [settings, setSettings] = useState(false),
     [origins, setOrigins] = useState(""),
     [busy, setBusy] = useState(false),
-    [notice, setNotice] = useState("");
+    [notice, setNotice] = useState(""),
+    [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(
+      new Set(),
+    );
   async function load() {
     try {
       setData(await api("dashboard"));
@@ -196,7 +204,7 @@ function App() {
           <details className="collection-status" key={r.source}>
             <summary>
               {r.source === "wanted" ? "원티드" : "잡코리아"}{" "}
-              {!r.at ? "수집 전" : r.success ? "완료" : "일부 수집"}
+              {!r.at ? "수집 전" : statusLabel(r)}
               {r.at && (
                 <>
                   {" "}
@@ -289,7 +297,7 @@ function App() {
         {groups.length}개 회사 · {groups.reduce((n, g) => n + g.jobs.length, 0)}
         개 공고
         <span className="list-hint">
-          공고명을 눌러 모집 내용 보기 · ☆ 관심 · » 스킵 · ✓ 지원완료
+          회사 행을 눌러 공고 펼치기 · ☆ 관심 · » 스킵 · ✓ 지원완료
         </span>
       </div>
       {!data ? (
@@ -310,17 +318,41 @@ function App() {
       ) : (
         groups.map(({ key, jobs }) => {
           const flags = state?.companies[key],
-            commute = state?.commutes[key];
+            commute = state?.commutes[key],
+            expanded = expandedCompanies.has(key),
+            contentId = `company-${encodeURIComponent(key)}`;
           return (
-            <article className="company" key={key}>
+            <article
+              className="company"
+              key={key}
+              aria-label={jobs[0].companyName}
+            >
               <div className="company-head">
-                <div>
-                  <h2>{jobs[0].companyName}</h2>
-                  <span className="muted">
-                    공고 {jobs.length}개
-                    {commute ? ` · 통근 ${commute.minutes}분` : ""}
+                <button
+                  className="company-toggle"
+                  aria-expanded={expanded}
+                  aria-controls={contentId}
+                  onClick={() =>
+                    setExpandedCompanies((current) => {
+                      const next = new Set(current);
+                      if (next.has(key)) next.delete(key);
+                      else next.add(key);
+                      return next;
+                    })
+                  }
+                >
+                  <span className="company-name" title={jobs[0].companyName}>
+                    {jobs[0].companyName}
                   </span>
-                </div>
+                  <span className="company-preview" title={jobs[0].title}>
+                    {jobs[0].title}
+                  </span>
+                  <span className="company-count">공고 {jobs.length}개</span>
+                  <span className="period">{period(jobs[0])}</span>
+                  <span className="chevron" aria-hidden="true">
+                    ⌄
+                  </span>
+                </button>
                 <div className="actions">
                   <button
                     className="icon-button"
@@ -356,137 +388,149 @@ function App() {
                   </button>
                 </div>
               </div>
-              {jobs.map((job) => (
-                <section className="job" key={job.key}>
-                  <details className="job-details">
-                    <summary
-                      onClick={(event) => {
-                        const details = event.currentTarget
-                          .parentElement as HTMLDetailsElement;
-                        if (
-                          details.open &&
-                          details.getBoundingClientRect().top < 0
-                        ) {
-                          event.preventDefault();
-                          details.open = false;
-                          details.scrollIntoView({
-                            block: "start",
-                            behavior: "instant",
-                          });
-                        }
-                      }}
-                    >
-                      <span className="job-title-text">{job.title}</span>
-                      {job.isNew && <span className="badge">신규</span>}
-                      {job.isUpdated && <span className="badge">수정</span>}
-                      <span className="period">{period(job)}</span>
-                      <span className="collapse-label">접기</span>
-                      <span className="chevron" aria-hidden="true">
-                        ⌄
-                      </span>
-                    </summary>
-                    <div className="job-content">
-                      <p className="muted">
-                        {job.source === "wanted" ? "원티드" : "잡코리아"} ·{" "}
-                        {job.location || "위치 미확인"} · 경력{" "}
-                        {job.minYears === null
-                          ? "미확인"
-                          : job.minYears + "년 이상"}
-                        {job.status === "unknown" ? " · 채용 상태 미확인" : ""}
-                      </p>
-                      <p className="reasons">
-                        {job.reasons.join(" / ") ||
-                          "적합 조건을 직접 확인해 주세요."}
-                      </p>
-                      <h3>모집 내용</h3>
-                      <p className="description">
-                        {job.description.trim() ||
-                          "저장된 모집 내용이 없습니다. 지금 수집으로 내용을 갱신하거나 원문을 확인해 주세요."}
-                      </p>
-                      <div className="content-source">
-                        <span>
-                          저장된 공고 · 마지막 확인{" "}
-                          {new Date(job.lastSeenAt).toLocaleDateString("ko-KR")}
-                        </span>
-                        <a href={job.url} target="_blank" rel="noreferrer">
-                          원문 보기 ↗
-                        </a>
-                      </div>
-                    </div>
-                  </details>
-                  <button
-                    className="icon-button applied-button"
-                    title={job.isApplied ? "지원 완료 해제" : "지원 완료"}
-                    aria-label={job.isApplied ? "지원 완료 해제" : "지원 완료"}
-                    aria-pressed={job.isApplied}
-                    disabled={busy}
-                    onClick={() =>
-                      void act(
-                        "job",
-                        { key: job.key, isApplied: !job.isApplied },
-                        "PATCH",
-                      )
-                    }
-                  >
-                    <Icon symbol="✓" />
-                  </button>
-                </section>
-              ))}
-              <details className="company-tools">
-                <summary>회사 관리</summary>
-                <div className="company-footer">
-                  <button
-                    onClick={() => {
-                      const value = prompt(
-                        "두 출발역 중 더 빠른 통근 시간(분)",
-                        String(commute?.minutes ?? ""),
-                      );
-                      if (value !== null && value.trim())
-                        void act("commute", { key, minutes: Number(value) });
-                    }}
-                  >
-                    통근 시간 기록
-                  </button>
-                  {state?.origins.map((origin) => (
-                    <a
-                      key={origin}
-                      href={`https://map.naver.com/p/search/${encodeURIComponent(origin + "에서 " + jobs[0].location)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {origin} 경로 확인
-                    </a>
-                  ))}
-                  <details>
-                    <summary>같은 회사 연결</summary>
-                    <label>
-                      다른 이름이나 사이트로 등록된 회사를 선택하세요.
-                      <select
-                        aria-label="연결할 회사"
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value)
-                            void act("link", { from: e.target.value, to: key });
+              <div id={contentId} hidden={!expanded}>
+                {commute && <p className="muted">통근 {commute.minutes}분</p>}
+                {jobs.map((job) => (
+                  <section className="job" key={job.key}>
+                    <details className="job-details">
+                      <summary
+                        onClick={(event) => {
+                          const details = event.currentTarget
+                            .parentElement as HTMLDetailsElement;
+                          if (
+                            details.open &&
+                            details.getBoundingClientRect().top < 0
+                          ) {
+                            event.preventDefault();
+                            details.open = false;
+                            details.scrollIntoView({
+                              block: "start",
+                              behavior: "instant",
+                            });
+                          }
                         }}
                       >
-                        <option value="">회사 선택</option>
-                        {[
-                          ...new Map(
-                            (data?.jobs ?? []).map((j) => [j.companyKey, j]),
-                          ).values(),
-                        ]
-                          .filter((j) => j.companyKey !== key)
-                          .map((j) => (
-                            <option key={j.companyKey} value={j.companyKey}>
-                              {j.companyName} (
-                              {j.source === "wanted" ? "원티드" : "잡코리아"})
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                  </details>
-                </div>
-              </details>
+                        <span className="job-title-text">{job.title}</span>
+                        {job.isNew && <span className="badge">신규</span>}
+                        {job.isUpdated && <span className="badge">수정</span>}
+                        <span className="period">{period(job)}</span>
+                        <span className="collapse-label">접기</span>
+                        <span className="chevron" aria-hidden="true">
+                          ⌄
+                        </span>
+                      </summary>
+                      <div className="job-content">
+                        <p className="muted">
+                          {job.source === "wanted" ? "원티드" : "잡코리아"} ·{" "}
+                          {job.location || "위치 미확인"} · 경력{" "}
+                          {job.minYears === null
+                            ? "미확인"
+                            : job.minYears + "년 이상"}
+                          {job.status === "unknown"
+                            ? " · 채용 상태 미확인"
+                            : ""}
+                        </p>
+                        <p className="reasons">
+                          {job.reasons.join(" / ") ||
+                            "적합 조건을 직접 확인해 주세요."}
+                        </p>
+                        <h3>모집 내용</h3>
+                        <p className="description">
+                          {job.description.trim() ||
+                            "저장된 모집 내용이 없습니다. 지금 수집으로 내용을 갱신하거나 원문을 확인해 주세요."}
+                        </p>
+                        <div className="content-source">
+                          <span>
+                            저장된 공고 · 마지막 확인{" "}
+                            {new Date(job.lastSeenAt).toLocaleDateString(
+                              "ko-KR",
+                            )}
+                          </span>
+                          <a href={job.url} target="_blank" rel="noreferrer">
+                            원문 보기 ↗
+                          </a>
+                        </div>
+                      </div>
+                    </details>
+                    <button
+                      className="icon-button applied-button"
+                      title={job.isApplied ? "지원 완료 해제" : "지원 완료"}
+                      aria-label={
+                        job.isApplied ? "지원 완료 해제" : "지원 완료"
+                      }
+                      aria-pressed={job.isApplied}
+                      disabled={busy}
+                      onClick={() =>
+                        void act(
+                          "job",
+                          { key: job.key, isApplied: !job.isApplied },
+                          "PATCH",
+                        )
+                      }
+                    >
+                      <Icon symbol="✓" />
+                    </button>
+                  </section>
+                ))}
+                <details className="company-tools">
+                  <summary>회사 관리</summary>
+                  <div className="company-footer">
+                    <button
+                      onClick={() => {
+                        const value = prompt(
+                          "두 출발역 중 더 빠른 통근 시간(분)",
+                          String(commute?.minutes ?? ""),
+                        );
+                        if (value !== null && value.trim())
+                          void act("commute", { key, minutes: Number(value) });
+                      }}
+                    >
+                      통근 시간 기록
+                    </button>
+                    {state?.origins.map((origin) => (
+                      <a
+                        key={origin}
+                        href={`https://map.naver.com/p/search/${encodeURIComponent(origin + "에서 " + jobs[0].location)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {origin} 경로 확인
+                      </a>
+                    ))}
+                    <details>
+                      <summary>같은 회사 연결</summary>
+                      <label>
+                        다른 이름이나 사이트로 등록된 회사를 선택하세요.
+                        <select
+                          aria-label="연결할 회사"
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value)
+                              void act("link", {
+                                from: e.target.value,
+                                to: key,
+                              });
+                          }}
+                        >
+                          <option value="">회사 선택</option>
+                          {[
+                            ...new Map(
+                              (data?.jobs ?? []).map((j) => [j.companyKey, j]),
+                            ).values(),
+                          ]
+                            .filter((j) => j.companyKey !== key)
+                            .map((j) => (
+                              <option key={j.companyKey} value={j.companyKey}>
+                                {j.companyName} (
+                                {j.source === "wanted" ? "원티드" : "잡코리아"})
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                    </details>
+                  </div>
+                </details>
+              </div>
             </article>
           );
         })

@@ -1,20 +1,30 @@
 import * as cheerio from "cheerio";
-import { chromium } from "playwright";
+import { z } from "zod";
 import type { Job, Source } from "./model.js";
 import profile from "../config/profile.public.json";
 import { isCandidateTitle } from "./matching.js";
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-export async function fetchHtml(url: string) {
+export async function fetchHtml(url: string, options: RequestInit = {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const r = await fetch(url, {
+        ...options,
         signal: AbortSignal.timeout(25000),
-        headers: { "User-Agent": "JobResearcher/0.1 (personal job discovery)" },
+        headers: {
+          "User-Agent": "JobResearcher/0.1 (personal job discovery)",
+          ...options.headers,
+        },
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return await r.text();
     } catch (e) {
-      if (attempt === 2) throw e;
+      if (
+        attempt === 2 ||
+        (e instanceof Error &&
+          /HTTP 4\d\d/.test(e.message) &&
+          !/HTTP 429/.test(e.message))
+      )
+        throw e;
       await sleep(1500 * (attempt + 1));
     }
   }
@@ -58,7 +68,16 @@ export function parseWanted(html: string, id: string): Job {
   const $ = cheerio.load(html);
   const data = JSON.parse($("#__NEXT_DATA__").text()).props.pageProps
     .initialData;
-  if (!data || String(data.id) !== id) throw new Error("Missing Wanted detail");
+  return wantedJob(data, id);
+}
+function wantedJob(data: any, id: string): Job {
+  if (
+    !data ||
+    String(data.id) !== id ||
+    !data.company?.company_name ||
+    !data.position
+  )
+    throw new Error("Missing Wanted detail");
   const j = base("wanted", id);
   j.companyId = String(data.company.company_id);
   j.companyName = data.company.company_name;
@@ -89,6 +108,56 @@ export function parseWanted(html: string, id: string): Job {
     j.description.toLowerCase().includes(s.toLowerCase()),
   );
   return j;
+}
+export function parseWantedApi(value: unknown, id: string): Job {
+  const { job } = z
+    .object({
+      job: z.object({
+        id: z.number(),
+        position: z.string(),
+        company: z.object({ id: z.number(), name: z.string() }),
+        detail: z.object({
+          intro: z.string().nullish(),
+          main_tasks: z.string().nullish(),
+          requirements: z.string().nullish(),
+          preferred_points: z.string().nullish(),
+          benefits: z.string().nullish(),
+        }),
+        address: z
+          .object({
+            full_location: z.string().nullish(),
+            location: z.string().nullish(),
+          })
+          .nullish(),
+        annual_from: z.number().nullish(),
+        annual_to: z.number().nullish(),
+        due_time: z.string().nullish(),
+        status: z.string(),
+      }),
+    })
+    .parse(value);
+  return wantedJob(
+    {
+      ...job.detail,
+      id: job.id,
+      position: job.position,
+      company: { company_id: job.company.id, company_name: job.company.name },
+      address: {
+        full_location: [job.address?.location, job.address?.full_location]
+          .filter(Boolean)
+          .join(" "),
+      },
+      career: { annual_from: job.annual_from, annual_to: job.annual_to },
+      due_time: job.due_time,
+      status: job.status,
+    },
+    id,
+  );
+}
+export function listingFailure(error: unknown) {
+  const status =
+    error instanceof Error ? error.message.match(/HTTP (\d{3})/)?.[1] : null;
+  return status ? `listing-http-${status}` : "listing-failed";
 }
 export function deadlineTime(value: string): number {
   return Date.parse(
@@ -176,58 +245,45 @@ export async function discoverWanted(
   limit: number,
   deadline = Infinity,
 ): Promise<Discovery> {
-  const browser = await chromium.launch({ headless: true });
-  try {
-    const page = await browser.newPage({
-      userAgent: "JobResearcher/0.1 (personal job discovery)",
-      locale: "ko-KR",
-    });
-    const listingUrl =
-      "https://www.wanted.co.kr/wdlist/518?country=kr&job_sort=job.latest_order&years=-1&locations=all";
-    let response = await page.goto(listingUrl, {
-      waitUntil: "domcontentloaded",
-    });
-    if (response?.status() === 403) {
-      // Use the same public document through our HTTP client when the browser
-      // transport is rejected. No credentials or private endpoints are used.
-      const html = await fetchHtml(listingUrl);
-      await page.route(listingUrl, (route) =>
-        route.fulfill({ status: 200, contentType: "text/html", body: html }),
-      );
-      response = await page.goto(listingUrl, { waitUntil: "domcontentloaded" });
+  const ids = new Set<string>();
+  const pages = new Set<string>();
+  let url: string | null =
+    "https://www.wanted.co.kr/api/v4/jobs?country=kr&tag_type_ids=518&job_sort=job.latest_order&years=-1&locations=all&limit=100&offset=0";
+  for (let page = 0; page < limit; page++) {
+    if (Date.now() >= deadline)
+      return { ids: [...ids], complete: false, reason: "time-budget" };
+    try {
+      const listing = z
+        .object({
+          data: z.array(z.object({ id: z.number(), position: z.string() })),
+          links: z.object({ next: z.string().nullable() }),
+        })
+        .parse(JSON.parse(await fetchHtml(url!)));
+      const signature = listing.data
+        .map((job) => job.id)
+        .sort()
+        .join(",");
+      if (listing.data.length && pages.has(signature))
+        return { ids: [...ids], complete: false, reason: "repeated-page" };
+      pages.add(signature);
+      for (const job of listing.data)
+        if (relevant(job.position)) ids.add(String(job.id));
+      if (!listing.links.next)
+        return { ids: [...ids], complete: true, reason: null };
+      const next: URL = new URL(listing.links.next, url!);
+      if (
+        next.origin !== "https://www.wanted.co.kr" ||
+        next.pathname !== "/api/v4/jobs"
+      )
+        throw new Error("Unexpected Wanted pagination URL");
+      url = next.href;
+    } catch (error) {
+      if (!ids.size) throw error;
+      return { ids: [...ids], complete: false, reason: listingFailure(error) };
     }
-    if (!response?.ok())
-      throw new Error(
-        `Wanted listing HTTP ${response?.status() ?? "no-response"}`,
-      );
-    await page.locator('a[href*="/wd/"]').first().waitFor({ timeout: 30000 });
-    const ids = new Set<string>();
-    let stable = 0;
-    for (let step = 0; step < limit; step++) {
-      if (Date.now() >= deadline)
-        return { ids: [...ids], complete: false, reason: "time-budget" };
-      const links = await page.locator('a[href*="/wd/"]').evaluateAll((nodes) =>
-        nodes.map((n) => ({
-          href: n.getAttribute("href") ?? "",
-          text: n.textContent ?? "",
-        })),
-      );
-      const before = ids.size;
-      for (const link of links) {
-        const match = link.href.match(/\/wd\/(\d+)/);
-        if (match && relevant(link.text)) ids.add(match[1]);
-      }
-      const total = await page.locator('a[href*="/wd/"]').count();
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await sleep(1600);
-      const after = await page.locator('a[href*="/wd/"]').count();
-      stable = after === total && before === ids.size ? stable + 1 : 0;
-      if (stable >= 4) return { ids: [...ids], complete: true, reason: null };
-    }
-    return { ids: [...ids], complete: false, reason: "scroll-limit" };
-  } finally {
-    await browser.close();
+    await sleep(1000);
   }
+  return { ids: [...ids], complete: false, reason: "page-limit" };
 }
 export async function discoverJobkorea(
   limit: number,
@@ -238,18 +294,47 @@ export async function discoverJobkorea(
   for (let page = 1; page <= limit; page++) {
     if (Date.now() >= deadline)
       return { ids: [...ids], complete: false, reason: "time-budget" };
-    const html = await fetchHtml(
-      `https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&duty=1000229,1000231&Page=${page}`,
-    );
+    let html: string;
+    try {
+      html = await fetchHtml(
+        "https://www.jobkorea.co.kr/Recruit/Home/_GI_List/",
+        {
+          method: "POST",
+          headers: {
+            Referer:
+              "https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&duty=1000229,1000231",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          body: new URLSearchParams({
+            "condition[duty]": "1000229,1000231",
+            "condition[menucode]": "",
+            page: String(page),
+            pagesize: "40",
+            order: "20",
+            tabindex: "0",
+            direct: "0",
+            onePick: "0",
+            confirm: "0",
+            profile: "0",
+          }),
+        },
+      );
+    } catch (error) {
+      if (!ids.size) throw error;
+      return { ids: [...ids], complete: false, reason: listingFailure(error) };
+    }
     const $ = cheerio.load(html);
-    const links = $('#dev-gi-list strong > a[href*="/Recruit/GI_Read/" i]')
+    const links = $('strong > a[href*="/Recruit/GI_Read/" i]')
       .toArray()
       .map((el) => ({
         href: $(el).attr("href") ?? "",
         text: $(el).text().trim(),
       }));
-    if (!links.length)
-      throw new Error("No Jobkorea links; layout or access changed");
+    if (!links.length) {
+      if (!ids.size)
+        throw new Error("No Jobkorea links; layout or access changed");
+      return { ids: [...ids], complete: false, reason: "listing-failed" };
+    }
     const signature = [
       ...new Set(
         links.map((l) => l.href.match(/GI_Read\/(\d+)/i)?.[1]).filter(Boolean),
@@ -264,7 +349,7 @@ export async function discoverJobkorea(
       const id = link.href.match(/GI_Read\/(\d+)/i)?.[1];
       if (id && isCandidateTitle(link.text)) ids.add(id);
     }
-    const next = $("#dev-gi-list a[data-page]")
+    const next = $("a[data-page]")
       .toArray()
       .some((el) => {
         const href = $(el).attr("href") ?? "";
@@ -280,8 +365,19 @@ export async function discoverJobkorea(
 }
 export async function getDetail(source: Source, id: string) {
   const job = base(source, id);
+  if (source === "wanted") {
+    try {
+      return parseWantedApi(
+        JSON.parse(
+          await fetchHtml(`https://www.wanted.co.kr/api/v4/jobs/${id}`),
+        ),
+        id,
+      );
+    } catch {
+      return parseWanted(await fetchHtml(job.url), id);
+    }
+  }
   const html = await fetchHtml(job.url);
-  if (source === "wanted") return parseWanted(html, id);
   const parsed = parseJobkorea(html, id);
   if (parsed.iframe) {
     const url = new URL(parsed.iframe, job.url);

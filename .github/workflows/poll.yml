@@ -36,7 +36,9 @@ jobs:
         env:
           MAX_PAGES: ${{ inputs.max_pages || '250' }}
           MAX_DETAILS: ${{ inputs.max_details || '0' }}
-        run: npx tsx src/collect.ts --max-pages "$MAX_PAGES" --max-details "$MAX_DETAILS"
+        run: |
+          rm -f reports/collection.json
+          npx tsx src/collect.ts --max-pages "$MAX_PAGES" --max-details "$MAX_DETAILS"
       - name: Inspect and save public data
         if: always() && !cancelled()
         shell: bash
@@ -49,6 +51,6 @@ jobs:
             git -c user.name='job-researcher-bot' -c user.email='job-researcher-bot@users.noreply.github.com' commit -m 'Update public job data'
             git push
           fi
-      - name: Report incomplete collection
-        if: steps.collect.outcome == 'failure'
-        run: exit 1
+      - name: Report collection by source
+        if: always() && !cancelled() && (steps.collect.outcome == 'success' || steps.collect.outcome == 'failure')
+        run: node --import tsx src/collection-report.ts
