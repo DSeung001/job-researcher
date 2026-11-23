@@ -1,6 +1,7 @@
 import { appendFile, readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { collectionFailed, statusLabel } from "./collection-status.js";
+import { parseCollectionOptions } from "./collection-options.js";
 import type { Run, Source } from "./model.js";
 
 export function collectionSummary(runs: (Run & { source: Source })[]) {
@@ -22,7 +23,15 @@ async function main() {
   const runs = JSON.parse(
     await readFile("reports/collection.json", "utf8"),
   ) as (Run & { source: Source })[];
-  if (runs.length !== 2 || new Set(runs.map((run) => run.source)).size !== 2)
+  const sources = parseCollectionOptions(process.argv.slice(2)).sources ?? [
+    "jobkorea",
+    "wanted",
+  ];
+  if (
+    runs.length !== sources.length ||
+    new Set(runs.map((run) => run.source)).size !== sources.length ||
+    sources.some((source) => !runs.some((run) => run.source === source))
+  )
     throw new Error("Missing collection results");
   const summary = collectionSummary(runs);
   console.log(summary);

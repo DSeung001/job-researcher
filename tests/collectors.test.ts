@@ -7,9 +7,11 @@ import {
 } from "../src/collectors.js";
 import {
   collectionFailed,
+  limitReason,
   collectionStatus,
 } from "../src/collection-status.js";
 import { collectionSummary } from "../src/collection-report.js";
+import { parseCollectionOptions } from "../src/collection-options.js";
 import type { Run } from "../src/model.js";
 
 const run: Run = {
@@ -178,4 +180,38 @@ test("reports distinguish blocked sources, partial progress, limits, and errors"
   );
   assert.equal(collectionFailed([{ ...run, reason: "detail-limit" }]), true);
   assert.match(collectionSummary([blocked]), /원티드 \| 접근 차단/);
+});
+
+test("detail and time limits never hide an earlier listing failure", () => {
+  assert.equal(limitReason("repeated-page", "detail-limit"), "repeated-page");
+  assert.equal(
+    limitReason("listing-http-403", "time-budget"),
+    "listing-http-403",
+  );
+  assert.equal(limitReason("page-limit", "detail-limit"), "detail-limit");
+  assert.equal(limitReason(null, "detail-limit"), "detail-limit");
+});
+
+test("collection CLI selects sources and rejects invalid limits", () => {
+  assert.deepEqual(
+    parseCollectionOptions([
+      "--sources",
+      "wanted,wanted",
+      "--max-pages",
+      "3",
+      "--max-details",
+      "0",
+    ]),
+    { sources: ["wanted"], maxPages: 3, maxDetails: undefined },
+  );
+  for (const args of [
+    ["--sources", "other"],
+    ["--sources", ""],
+    ["--max-pages", "0"],
+    ["--max-details", "-1"],
+    ["--max-details", "NaN"],
+    ["--max-pages"],
+    ["--other", "1"],
+  ])
+    assert.throws(() => parseCollectionOptions(args));
 });

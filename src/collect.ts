@@ -9,11 +9,14 @@ import {
   sleep,
   listingFailure,
 } from "./collectors.js";
-import type { Job, Source } from "./model.js";
+import type { Job } from "./model.js";
 import { classifyJob } from "./matching.js";
-export async function collect(
-  options: { maxPages?: number; maxDetails?: number } = {},
-) {
+import { limitReason } from "./collection-status.js";
+import {
+  parseCollectionOptions,
+  type CollectionOptions,
+} from "./collection-options.js";
+export async function collect(options: CollectionOptions = {}) {
   await mkdir(".local", { recursive: true });
   const lock = await open(".local/collect.lock", "wx").catch(() => {
     throw new Error(
@@ -22,7 +25,7 @@ export async function collect(
   });
   const results = [];
   try {
-    for (const source of ["jobkorea", "wanted"] as Source[]) {
+    for (const source of options.sources ?? ["jobkorea", "wanted"]) {
       const old = await readDataset(source);
       const checkedAtById = { ...old.checkedAtById };
       const deadline = Date.now() + 22 * 60 * 1000;
@@ -57,12 +60,12 @@ export async function collect(
         const targets = candidates.slice(0, options.maxDetails ?? Infinity);
         if (targets.length < candidates.length) {
           complete = false;
-          reason = "detail-limit";
+          reason = limitReason(reason, "detail-limit");
         }
         for (const id of targets) {
           if (Date.now() >= deadline) {
             complete = false;
-            reason = "time-budget";
+            reason = limitReason(reason, "time-budget");
             break;
           }
           try {
@@ -130,11 +133,8 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  const arg = (name: string) => {
-    const i = process.argv.indexOf(name);
-    return i >= 0 ? Number(process.argv[i + 1]) || undefined : undefined;
-  };
-  collect({ maxPages: arg("--max-pages"), maxDetails: arg("--max-details") })
+  Promise.resolve()
+    .then(() => collect(parseCollectionOptions(process.argv.slice(2))))
     .then((r) => {
       if (r.some((x) => !x.success)) process.exitCode = 1;
     })

@@ -7,6 +7,9 @@ const limits = new Set([
   "scroll-limit",
   "time-budget",
 ]);
+export function limitReason(current: string | null, limit: string) {
+  return current && !limits.has(current) ? current : limit;
+}
 export function collectionStatus(run: Run): CollectionStatus {
   if (run.success) return "complete";
   if (run.fetched > 0 || (run.filtered ?? 0) > 0) return "partial";

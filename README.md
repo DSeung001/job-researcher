@@ -32,8 +32,10 @@ npm run dev
 ## 점검
 
 ```sh
-npm run collect  # 수집
-npm run check    # 테스트·빌드·개인정보 검사
+npm run collect                          # 두 사이트 수집
+npm run collect -- --sources wanted       # 원티드만 로컬 수집
+npm run collect -- --sources jobkorea     # 잡코리아만 수집
+npm run check                            # 테스트·빌드·개인정보 검사
 ```
 
 최근 수집 결과는 [reports/collection.json](reports/collection.json), 개발 규칙은 [AGENTS.md](AGENTS.md), 디자인 규칙은 [docs/design.md](docs/design.md)를 확인합니다.
@@ -42,6 +44,7 @@ npm run check    # 테스트·빌드·개인정보 검사
 
 - 잡코리아는 사이트의 공개 페이지 이동 POST, 원티드는 공개 목록·상세 API를 사용합니다. 원티드 상세 API가 실패하면 공개 공고 HTML도 확인합니다.
 - Actions 요약에 사이트별 발견·저장·제외·실패 건수와 사유를 표시합니다. 페이지·상세 개수·시간 제한은 경고하고, HTTP 403·반복 페이지·상세 오류는 실패로 표시합니다. 부분 결과와 기존 공고는 보존합니다.
+- 원티드는 Ubuntu·macOS GitHub 호스팅 러너에서 공개 목록 API도 HTTP 403으로 차단되는 것을 확인했습니다. 한국의 로컬 환경에서는 목록·상세 수집이 가능합니다. 자동 수집에는 접근 가능한 자체 실행 환경이 필요합니다.
 - 채용 사이트가 실행 환경에 따라 접근을 제한할 수 있습니다. `접근 차단`이 표시되면 해당 사이트의 갱신은 완료되지 않은 상태이며, 로컬 수집으로 확인할 수 있습니다.
 - 전체 수집은 사이트별 22분 안에서 진행하며, 기존 공고 중 오래 확인하지 않은 항목부터 상세를 갱신합니다. 전체 범위 검증은 남아 있습니다.
 - 이미지 공고의 텍스트 추출, 통근 시간 자동 계산, 모바일 원격 접속은 지원하지 않습니다.
