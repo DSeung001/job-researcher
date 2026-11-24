@@ -5,9 +5,18 @@ import { parseCollectionOptions } from "./collection-options.js";
 import type { Run, Source } from "./model.js";
 
 export function collectionSummary(runs: (Run & { source: Source })[]) {
+  const omitted = (["jobkorea", "wanted"] as const)
+    .filter((source) => !runs.some((run) => run.source === source))
+    .map((source) => (source === "wanted" ? "원티드" : "잡코리아"));
   return [
     "## 공고 수집 결과",
     "",
+    ...(omitted.length
+      ? [
+          `이번 실행에서 ${omitted.join("·")}는 수집 대상으로 선택되지 않아 갱신하지 않았습니다. 기존 데이터를 유지합니다.`,
+          "",
+        ]
+      : []),
     "| 사이트 | 상태 | 발견 | 저장 | 제외 | 상세 실패 | 사유 |",
     "| --- | --- | ---: | ---: | ---: | ---: | --- |",
     ...runs.map(

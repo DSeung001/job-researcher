@@ -19,7 +19,7 @@ npm run dev
 - 백엔드·웹·소프트웨어·AI 서비스 개발 목록 탐색, 회사·직무를 번갈아 상세 수집
 - 회사 스킵·관심·지원 완료 기록
 - 통근 시간 기록과 개인 상태 백업·복원
-- GitHub Actions 정기 수집: 매일 한국시간 04:00
+- GitHub Actions 정기 수집: 매일 한국시간 04:00, 기본 대상은 잡코리아
 
 ## 설계 원칙
 
@@ -40,6 +40,14 @@ npm run check                            # 테스트·빌드·개인정보 검�
 ```
 
 최근 수집 결과는 [reports/collection.json](reports/collection.json), 개발 규칙은 [AGENTS.md](AGENTS.md), 디자인 규칙은 [docs/design.md](docs/design.md)를 확인합니다.
+
+## 원티드 자동 수집 환경
+
+GitHub 호스팅 러너에서는 원티드 목록 API가 HTTP 403을 반환하므로 정기 실행 기본값은 `jobkorea`입니다. 원티드를 제외한 실행은 원티드 데이터와 마지막 수집 상태를 그대로 유지하며, Actions 요약에 미수집 사이트를 표시합니다. 두 사이트 전체가 갱신된 것으로 취급하지 않습니다.
+
+원티드에 접근 가능한 자체 러너를 저장소에 등록한 뒤, 저장소의 Actions 변수에 `POLL_RUNNER=self-hosted`, `POLL_SOURCES=jobkorea,wanted`를 설정하면 정기 실행에서 두 사이트를 수집합니다. 자체 러너에는 Node.js 24를 실행할 수 있는 환경과 Git이 필요합니다. 직접 실행할 때는 **Run workflow**에서 `sources`와 `runner`를 함께 선택합니다. 직접 실행 입력은 정기 실행용 변수보다 우선합니다.
+
+러너를 변경하기 전에는 해당 환경에서 `npm run collect -- --sources wanted --max-pages 1 --max-details 1`로 접근을 확인합니다. GitHub 호스팅 러너에서 원티드를 명시적으로 요청하면 차단은 계속 실패로 보고합니다. HTTP 403 자체를 해결하거나 무시하는 설정은 아닙니다.
 
 ## 현재 제한
 

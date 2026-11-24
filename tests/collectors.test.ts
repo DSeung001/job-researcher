@@ -183,6 +183,20 @@ test("reports distinguish blocked sources, partial progress, limits, and errors"
   );
   assert.equal(collectionFailed([{ ...run, reason: "detail-limit" }]), true);
   assert.match(collectionSummary([blocked]), /원티드 \| 접근 차단/);
+  assert.match(
+    collectionSummary([blocked]),
+    /잡코리아는 수집 대상으로 선택되지 않아 갱신하지 않았습니다/,
+  );
+  assert.match(
+    collectionSummary([
+      { ...run, source: "jobkorea", reason: "time-budget", fetched: 473 },
+    ]),
+    /원티드는 수집 대상으로 선택되지 않아 갱신하지 않았습니다/,
+  );
+  assert.doesNotMatch(
+    collectionSummary([blocked, { ...run, source: "jobkorea" }]),
+    /수집 대상으로 선택되지 않아/,
+  );
 });
 
 test("detail and time limits never hide an earlier listing failure", () => {
