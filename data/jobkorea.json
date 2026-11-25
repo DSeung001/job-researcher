@@ -13241,13 +13241,13 @@
     "50422946": "2026-11-24T04:07:35.006Z"
   },
   "run": {
-    "at": "2026-11-24T04:07:35.006Z",
+    "at": "2026-11-25T02:50:44.899Z",
     "success": false,
     "complete": false,
-    "discovered": 2150,
-    "fetched": 473,
+    "discovered": 0,
+    "fetched": 0,
     "failed": 0,
-    "filtered": 242,
-    "reason": "time-budget"
+    "filtered": 0,
+    "reason": "listing-failed"
   }
 }
