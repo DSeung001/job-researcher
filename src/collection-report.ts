@@ -5,23 +5,14 @@ import { parseCollectionOptions } from "./collection-options.js";
 import type { Run, Source } from "./model.js";
 
 export function collectionSummary(runs: (Run & { source: Source })[]) {
-  const omitted = (["jobkorea", "wanted"] as const)
-    .filter((source) => !runs.some((run) => run.source === source))
-    .map((source) => (source === "wanted" ? "원티드" : "잡코리아"));
   return [
     "## 공고 수집 결과",
     "",
-    ...(omitted.length
-      ? [
-          `이번 실행에서 ${omitted.join("·")}는 수집 대상으로 선택되지 않아 갱신하지 않았습니다. 기존 데이터를 유지합니다.`,
-          "",
-        ]
-      : []),
     "| 사이트 | 상태 | 발견 | 저장 | 제외 | 상세 실패 | 사유 |",
     "| --- | --- | ---: | ---: | ---: | ---: | --- |",
     ...runs.map(
       (run) =>
-        `| ${run.source === "wanted" ? "원티드" : "잡코리아"} | ${statusLabel(run)} | ${run.discovered} | ${run.fetched} | ${run.filtered ?? 0} | ${run.failed} | ${run.reason ?? "정상"} |`,
+        `| 잡코리아 | ${statusLabel(run)} | ${run.discovered} | ${run.fetched} | ${run.filtered ?? 0} | ${run.failed} | ${run.reason ?? "정상"} |`,
     ),
     "",
     "일부 수집·차단 시 기존 공고를 보존합니다. 제한에 도달한 실행은 경고하고, 접근 차단·수집 오류는 실패로 표시합니다.",
@@ -32,10 +23,7 @@ async function main() {
   const runs = JSON.parse(
     await readFile("reports/collection.json", "utf8"),
   ) as (Run & { source: Source })[];
-  const sources = parseCollectionOptions(process.argv.slice(2)).sources ?? [
-    "jobkorea",
-    "wanted",
-  ];
+  const sources = parseCollectionOptions(process.argv.slice(2)).sources ?? ["jobkorea"];
   if (
     runs.length !== sources.length ||
     new Set(runs.map((run) => run.source)).size !== sources.length ||

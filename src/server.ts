@@ -26,7 +26,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "2mb" }));
 let collecting = false;
 app.get("/api/dashboard", async (_req, res) => {
-  const datasets = await Promise.all(["wanted", "jobkorea"].map(readDataset));
+  const datasets = await Promise.all(["jobkorea"].map(readDataset));
   const state = await readState();
   const jobs = datasets
     .flatMap((d) => d.jobs)
@@ -42,7 +42,7 @@ app.get("/api/dashboard", async (_req, res) => {
     jobs,
     state,
     runs: datasets.map((d, i) => ({
-      source: ["wanted", "jobkorea"][i],
+      source: ["jobkorea"][i],
       ...d.run,
     })),
     collecting,

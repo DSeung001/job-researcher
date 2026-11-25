@@ -53,9 +53,7 @@ export function scoreJob(job: Job, state: State) {
   score += Math.min(30, skills.length * 6);
   if (skills.length) reasons.push(`기술: ${skills.join(", ")}`);
   const years = profile.experienceYears;
-  // Wanted encodes "no upper bound" as 100.
-  const maxYears =
-    job.maxYears !== null && job.maxYears < 100 ? job.maxYears : null;
+  const maxYears = job.maxYears;
   const juniorTitle =
     job.minYears === null &&
     maxYears === null &&

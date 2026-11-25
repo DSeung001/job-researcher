@@ -1,5 +1,5 @@
 import { z } from "zod";
-export const sourceSchema = z.enum(["wanted", "jobkorea"]);
+export const sourceSchema = z.enum(["jobkorea"]);
 export type Source = z.infer<typeof sourceSchema>;
 export const jobSchema = z.object({
   key: z.string(),

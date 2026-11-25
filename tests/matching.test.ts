@@ -86,7 +86,7 @@ test("resume-backed Java Spring and Vue skills participate in ranking without co
     maxYears: 8,
     firstSeenAt: "2026-01-01T00:00:00Z",
     contentUpdatedAt: "2026-01-01T00:00:00Z",
-    source: "wanted",
+    source: "jobkorea",
     companyId: "example",
   } as Job;
   const ranked = scoreJob(job, emptyState());

@@ -1,10 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  discoverJobkorea,
-  discoverWanted,
-  parseWantedApi,
-} from "../src/collectors.js";
+import { discoverJobkorea } from "../src/collectors.js";
 import {
   collectionFailed,
   limitReason,
@@ -53,62 +49,21 @@ test("Jobkorea uses the public paging POST and reads fragment pagination", async
   assert.deepEqual(requested, ["1", "2"]);
 });
 
-test("Wanted follows API next links and filters unrelated positions", async (t) => {
-  const requested: string[] = [];
-  t.mock.method(globalThis, "fetch", async (url: string) => {
-    requested.push(url);
-    return Response.json(
-      requested.length === 1
-        ? {
-            data: [
-              { id: 1, position: "백엔드 개발자" },
-              { id: 2, position: "마케터" },
-            ],
-            links: { next: "/api/v4/jobs?offset=100&limit=100" },
-          }
-        : {
-            data: [{ id: 3, position: "풀스택 개발자" }],
-            links: { next: null },
-          },
-    );
-  });
-  assert.deepEqual(await discoverWanted(5), {
-    ids: ["1", "3"],
-    complete: true,
-    reason: null,
-  });
-  assert.equal(
-    requested[1],
-    "https://www.wanted.co.kr/api/v4/jobs?offset=100&limit=100",
-  );
-});
-
 test("a later listing failure preserves already discovered candidates", async (t) => {
   let calls = 0;
   t.mock.method(globalThis, "fetch", async () =>
     ++calls === 1
-      ? Response.json({
-          data: [{ id: 1, position: "백엔드 개발자" }],
-          links: { next: "/api/v4/jobs?offset=100" },
-        })
+      ? new Response(
+          '<strong><a href="/Recruit/GI_Read/1">백엔드 개발자</a></strong><a data-page="2">2</a>',
+        )
       : new Response("Forbidden", { status: 403 }),
   );
-  assert.deepEqual(await discoverWanted(5), {
+  assert.deepEqual(await discoverJobkorea(5), {
     ids: ["1"],
     complete: false,
     reason: "listing-http-403",
   });
   assert.equal(calls, 2, "403 is not retried repeatedly");
-});
-
-test("Wanted refuses pagination to another host", async (t) => {
-  t.mock.method(globalThis, "fetch", async () =>
-    Response.json({
-      data: [{ id: 1, position: "백엔드 개발자" }],
-      links: { next: "https://example.com/api/v4/jobs" },
-    }),
-  );
-  assert.equal((await discoverWanted(2)).reason, "listing-failed");
 });
 
 test("repeated Jobkorea pages are errors, not successful end-of-list", async (t) => {
@@ -127,39 +82,10 @@ test("repeated Jobkorea pages are errors, not successful end-of-list", async (t)
   });
 });
 
-test("Wanted API selects public job fields and validates identity", () => {
-  const input = {
-    job: {
-      id: 123,
-      position: "백엔드 개발자",
-      company: { id: 9, name: "Example" },
-      detail: {
-        main_tasks: "Python API 개발",
-        requirements: "문의 example@example.org",
-      },
-      annual_from: 2,
-      annual_to: 5,
-      status: "active",
-      address: { location: "서울", full_location: "강남구" },
-      is_bookmark: true,
-    },
-  };
-  const job = parseWantedApi(input, "123");
-  assert.equal(job.companyId, "9");
-  assert.equal(job.minYears, 2);
-  assert.equal(job.maxYears, 5);
-  assert.equal(job.status, "open");
-  assert.equal(job.location, "서울 강남구");
-  assert.ok(!job.description.includes("example@example.org"));
-  assert.ok(!("is_bookmark" in job));
-  assert.throws(() => parseWantedApi(input, "999"));
-  assert.throws(() => parseWantedApi({ job: {} }, "123"));
-});
-
 test("reports distinguish blocked sources, partial progress, limits, and errors", () => {
   const blocked = {
     ...run,
-    source: "wanted" as const,
+    source: "jobkorea" as const,
     reason: "listing-http-403",
   };
   assert.equal(collectionStatus(blocked), "blocked");
@@ -182,21 +108,7 @@ test("reports distinguish blocked sources, partial progress, limits, and errors"
     false,
   );
   assert.equal(collectionFailed([{ ...run, reason: "detail-limit" }]), true);
-  assert.match(collectionSummary([blocked]), /원티드 \| 접근 차단/);
-  assert.match(
-    collectionSummary([blocked]),
-    /잡코리아는 수집 대상으로 선택되지 않아 갱신하지 않았습니다/,
-  );
-  assert.match(
-    collectionSummary([
-      { ...run, source: "jobkorea", reason: "time-budget", fetched: 473 },
-    ]),
-    /원티드는 수집 대상으로 선택되지 않아 갱신하지 않았습니다/,
-  );
-  assert.doesNotMatch(
-    collectionSummary([blocked, { ...run, source: "jobkorea" }]),
-    /수집 대상으로 선택되지 않아/,
-  );
+  assert.match(collectionSummary([blocked]), /잡코리아 \| 접근 차단/);
 });
 
 test("detail and time limits never hide an earlier listing failure", () => {
@@ -213,13 +125,13 @@ test("collection CLI selects sources and rejects invalid limits", () => {
   assert.deepEqual(
     parseCollectionOptions([
       "--sources",
-      "wanted,wanted",
+      "jobkorea,jobkorea",
       "--max-pages",
       "3",
       "--max-details",
       "0",
     ]),
-    { sources: ["wanted"], maxPages: 3, maxDetails: undefined },
+    { sources: ["jobkorea"], maxPages: 3, maxDetails: undefined },
   );
   for (const args of [
     ["--sources", "other"],
@@ -231,24 +143,4 @@ test("collection CLI selects sources and rejects invalid limits", () => {
     ["--other", "1"],
   ])
     assert.throws(() => parseCollectionOptions(args));
-});
-
-test("Wanted discovery supplies public company metadata for diverse selection", async (t) => {
-  t.mock.method(globalThis, "fetch", async () =>
-    Response.json({
-      data: [
-        {
-          id: 1,
-          position: "백엔드 개발자",
-          company: { id: 42, name: "Example" },
-        },
-      ],
-      links: { next: null },
-    }),
-  );
-  const candidates: unknown[] = [];
-  await discoverWanted(1, Infinity, (job) => candidates.push(job));
-  assert.deepEqual(candidates, [
-    { id: "1", title: "백엔드 개발자", companyId: "42" },
-  ]);
 });

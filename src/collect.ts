@@ -3,7 +3,6 @@ import { pathToFileURL } from "node:url";
 import { atomicJson, readDataset } from "./store.js";
 import { mergeJobs } from "./domain.js";
 import {
-  discoverWanted,
   discoverJobkorea,
   getDetail,
   sleep,
@@ -26,7 +25,7 @@ export async function collect(options: CollectionOptions = {}) {
   });
   const results = [];
   try {
-    for (const source of options.sources ?? ["jobkorea", "wanted"]) {
+    for (const source of options.sources ?? ["jobkorea"]) {
       const old = await readDataset(source);
       const checkedAtById = { ...old.checkedAtById };
       const deadline = Date.now() + 22 * 60 * 1000;
@@ -39,10 +38,10 @@ export async function collect(options: CollectionOptions = {}) {
       let reason: string | null = null;
       try {
         const metadata = new Map<string, Candidate>();
-        const discovery = await (
-          source === "wanted" ? discoverWanted : discoverJobkorea
-        )(options.maxPages ?? 250, deadline, (candidate) =>
-          metadata.set(candidate.id, candidate),
+        const discovery = await discoverJobkorea(
+          options.maxPages ?? 250,
+          deadline,
+          (candidate) => metadata.set(candidate.id, candidate),
         );
         discovered = discovery.ids.length;
         complete = discovery.complete;

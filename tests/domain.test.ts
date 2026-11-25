@@ -4,7 +4,6 @@ import { emptyState, type Job } from "../src/model.js";
 import { mergeJobs, scoreJob } from "../src/domain.js";
 import {
   parseJobkorea,
-  parseWanted,
   publicText,
   relevant,
   deadlineTime,
@@ -12,13 +11,13 @@ import {
 } from "../src/collectors.js";
 import { inspectPublicFile } from "../src/privacy.js";
 const sample: Job = {
-  key: "wanted:1",
-  source: "wanted",
+  key: "jobkorea:1",
+  source: "jobkorea",
   id: "1",
   companyId: "9",
   companyName: "Example",
   title: "백엔드 개발자",
-  url: "https://www.wanted.co.kr/wd/1",
+  url: "https://www.jobkorea.co.kr/Recruit/GI_Read/1",
   location: "서울",
   description: "Python Django Redis 커머스 대규모 트래픽",
   skills: ["Redis", "Python"],
@@ -68,14 +67,6 @@ test("new and updated derive from review watermark; domains never exclude", () =
     scoreJob({ ...job, description: "Python Django 금융" }, state).score > 0,
   );
 });
-test("Wanted detail extracts closed status and organization identity", () => {
-  const html = `<script id="__NEXT_DATA__">${JSON.stringify({ props: { pageProps: { initialData: { id: 1, company: { company_id: 9, company_name: "Example" }, position: "백엔드", address: { full_location: "서울" }, status: "close", career: { annual_from: 3, annual_to: 8 }, requirements: "Python" } } } })}</script>`;
-  const job = parseWanted(html, "1");
-  assert.equal(job.status, "closed");
-  assert.equal(job.companyId, "9");
-  assert.equal(job.minYears, 3);
-  assert.throws(() => parseWanted(html, "2"));
-});
 test("Jobkorea parses structured metadata and does not invent an open state", () => {
   const html = `<script type="application/ld+json">${JSON.stringify({ "@type": "JobPosting", title: "Backend", hiringOrganization: { name: "Example" }, description: "Python", jobLocation: { address: { streetAddress: "Seoul" } }, experienceRequirements: "3년 ~ 8년" })}</script>`;
   const { job } = parseJobkorea(html, "1");
@@ -85,9 +76,9 @@ test("Jobkorea parses structured metadata and does not invent an open state", ()
   assert.equal(job.location, "Seoul");
 });
 test("public artifacts reject private state and unapproved files", () => {
-  assert.ok(inspectPublicFile("data/wanted.json", '{"origins":[]}').length);
+  assert.ok(inspectPublicFile("data/jobkorea.json", '{"origins":[]}').length);
   assert.ok(inspectPublicFile(".local/state.json", "{}").length);
-  assert.deepEqual(inspectPublicFile("data/wanted.json", '{"jobs":[]}'), []);
+  assert.deepEqual(inspectPublicFile("data/jobkorea.json", '{"jobs":[]}'), []);
 });
 test("training advertisements are excluded and public text removes contact details", () => {
   assert.equal(relevant("국비 전액지원 풀스택 교육생 모집"), false);
@@ -122,7 +113,7 @@ test("Jobkorea reads years from the meta summary when JSON-LD says only 경력",
 test("experience outside 6 years is penalized; 7 years is allowed", () => {
   const state = emptyState();
   const score = (patch: Partial<Job>) => scoreJob({ ...sample, ...patch }, state);
-  const fit = score({ minYears: 5, maxYears: 100 });
+  const fit = score({ minYears: 5, maxYears: null });
   assert.ok(fit.reasons.includes("경력 범위 적합"));
   const junior = score({ minYears: 1, maxYears: 3 });
   assert.equal(junior.score, fit.score - 30);

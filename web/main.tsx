@@ -58,7 +58,6 @@ function App() {
     [error, setError] = useState(""),
     [query, setQuery] = useState(""),
     [tab, setTab] = useState("all"),
-    [source, setSource] = useState("all"),
     [onlyNew, setOnlyNew] = useState(false),
     [showClosed, setShowClosed] = useState(false),
     [settings, setSettings] = useState(false),
@@ -101,7 +100,6 @@ function App() {
     if (tab === "interested" && !flags?.isInterested) continue;
     if (tab === "applied" && !job.isApplied) continue;
     if (!showClosed && job.status === "closed") continue;
-    if (source !== "all" && job.source !== source) continue;
     if (onlyNew && !job.isNew && !job.isUpdated) continue;
     if (
       query &&
@@ -203,7 +201,7 @@ function App() {
         {data?.runs.map((r) => (
           <details className="collection-status" key={r.source}>
             <summary>
-              {r.source === "wanted" ? "원티드" : "잡코리아"}{" "}
+              잡코리아{" "}
               {!r.at ? "수집 전" : statusLabel(r)}
               {r.at && (
                 <>
@@ -266,15 +264,6 @@ function App() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <select
-          aria-label="사이트"
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-        >
-          <option value="all">모든 사이트</option>
-          <option value="wanted">원티드</option>
-          <option value="jobkorea">잡코리아</option>
-        </select>
         <label>
           <input
             type="checkbox"
@@ -421,7 +410,6 @@ function App() {
                       </summary>
                       <div className="job-content">
                         <p className="muted">
-                          {job.source === "wanted" ? "원티드" : "잡코리아"} ·{" "}
                           {job.location || "위치 미확인"} · 경력{" "}
                           {job.minYears === null
                             ? "미확인"
@@ -521,8 +509,7 @@ function App() {
                             .filter((j) => j.companyKey !== key)
                             .map((j) => (
                               <option key={j.companyKey} value={j.companyKey}>
-                                {j.companyName} (
-                                {j.source === "wanted" ? "원티드" : "잡코리아"})
+                                {j.companyName}
                               </option>
                             ))}
                         </select>

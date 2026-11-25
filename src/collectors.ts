@@ -1,5 +1,4 @@
 import * as cheerio from "cheerio";
-import { z } from "zod";
 import type { Job, Source } from "./model.js";
 import profile from "../config/profile.public.json";
 import type { Candidate } from "./collection-order.js";
@@ -48,10 +47,7 @@ function base(source: Source, id: string): Job {
     companyId: id,
     companyName: "",
     title: "",
-    url:
-      source === "wanted"
-        ? `https://www.wanted.co.kr/wd/${id}`
-        : `https://www.jobkorea.co.kr/Recruit/GI_Read/${id}`,
+    url: `https://www.jobkorea.co.kr/Recruit/GI_Read/${id}`,
     location: "",
     description: "",
     skills: [],
@@ -64,96 +60,6 @@ function base(source: Source, id: string): Job {
     contentUpdatedAt: "",
     hash: "",
   };
-}
-export function parseWanted(html: string, id: string): Job {
-  const $ = cheerio.load(html);
-  const data = JSON.parse($("#__NEXT_DATA__").text()).props.pageProps
-    .initialData;
-  return wantedJob(data, id);
-}
-function wantedJob(data: any, id: string): Job {
-  if (
-    !data ||
-    String(data.id) !== id ||
-    !data.company?.company_name ||
-    !data.position
-  )
-    throw new Error("Missing Wanted detail");
-  const j = base("wanted", id);
-  j.companyId = String(data.company.company_id);
-  j.companyName = data.company.company_name;
-  j.title = data.position;
-  j.location = data.address?.full_location ?? "";
-  j.description = publicText(
-    [
-      data.company.company_description,
-      data.intro,
-      data.main_tasks,
-      data.requirements,
-      data.preferred_points,
-      data.benefits,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  );
-  j.minYears = data.career?.annual_from ?? null;
-  j.maxYears = data.career?.annual_to ?? null;
-  j.deadline = data.due_time ?? null;
-  j.status =
-    data.status === "close"
-      ? "closed"
-      : ["open", "active"].includes(data.status)
-        ? "open"
-        : "unknown";
-  j.skills = profile.skills.filter((s) =>
-    j.description.toLowerCase().includes(s.toLowerCase()),
-  );
-  return j;
-}
-export function parseWantedApi(value: unknown, id: string): Job {
-  const { job } = z
-    .object({
-      job: z.object({
-        id: z.number(),
-        position: z.string(),
-        company: z.object({ id: z.number(), name: z.string() }),
-        detail: z.object({
-          intro: z.string().nullish(),
-          main_tasks: z.string().nullish(),
-          requirements: z.string().nullish(),
-          preferred_points: z.string().nullish(),
-          benefits: z.string().nullish(),
-        }),
-        address: z
-          .object({
-            full_location: z.string().nullish(),
-            location: z.string().nullish(),
-          })
-          .nullish(),
-        annual_from: z.number().nullish(),
-        annual_to: z.number().nullish(),
-        due_time: z.string().nullish(),
-        status: z.string(),
-      }),
-    })
-    .parse(value);
-  return wantedJob(
-    {
-      ...job.detail,
-      id: job.id,
-      position: job.position,
-      company: { company_id: job.company.id, company_name: job.company.name },
-      address: {
-        full_location: [job.address?.location, job.address?.full_location]
-          .filter(Boolean)
-          .join(" "),
-      },
-      career: { annual_from: job.annual_from, annual_to: job.annual_to },
-      due_time: job.due_time,
-      status: job.status,
-    },
-    id,
-  );
 }
 export function listingFailure(error: unknown) {
   const status =
@@ -264,64 +170,6 @@ export type Discovery = {
   complete: boolean;
   reason: string | null;
 };
-export async function discoverWanted(
-  limit: number,
-  deadline = Infinity,
-  onCandidate: (candidate: Candidate) => void = () => {},
-): Promise<Discovery> {
-  const ids = new Set<string>();
-  const pages = new Set<string>();
-  let url: string | null =
-    "https://www.wanted.co.kr/api/v4/jobs?country=kr&tag_type_ids=518&job_sort=job.latest_order&years=-1&locations=all&limit=100&offset=0";
-  for (let page = 0; page < limit; page++) {
-    if (Date.now() >= deadline)
-      return { ids: [...ids], complete: false, reason: "time-budget" };
-    try {
-      const listing = z
-        .object({
-          data: z.array(
-            z.object({
-              id: z.number(),
-              position: z.string(),
-              company: z.object({ id: z.number() }).optional(),
-            }),
-          ),
-          links: z.object({ next: z.string().nullable() }),
-        })
-        .parse(JSON.parse(await fetchHtml(url!)));
-      const signature = listing.data
-        .map((job) => job.id)
-        .sort()
-        .join(",");
-      if (listing.data.length && pages.has(signature))
-        return { ids: [...ids], complete: false, reason: "repeated-page" };
-      pages.add(signature);
-      for (const job of listing.data)
-        if (relevant(job.position)) {
-          ids.add(String(job.id));
-          onCandidate({
-            id: String(job.id),
-            title: job.position,
-            companyId: job.company ? String(job.company.id) : undefined,
-          });
-        }
-      if (!listing.links.next)
-        return { ids: [...ids], complete: true, reason: null };
-      const next: URL = new URL(listing.links.next, url!);
-      if (
-        next.origin !== "https://www.wanted.co.kr" ||
-        next.pathname !== "/api/v4/jobs"
-      )
-        throw new Error("Unexpected Wanted pagination URL");
-      url = next.href;
-    } catch (error) {
-      if (!ids.size) throw error;
-      return { ids: [...ids], complete: false, reason: listingFailure(error) };
-    }
-    await sleep(1000);
-  }
-  return { ids: [...ids], complete: false, reason: "page-limit" };
-}
 export async function discoverJobkorea(
   limit: number,
   deadline = Infinity,
@@ -415,18 +263,6 @@ export async function discoverJobkorea(
 }
 export async function getDetail(source: Source, id: string) {
   const job = base(source, id);
-  if (source === "wanted") {
-    try {
-      return parseWantedApi(
-        JSON.parse(
-          await fetchHtml(`https://www.wanted.co.kr/api/v4/jobs/${id}`),
-        ),
-        id,
-      );
-    } catch {
-      return parseWanted(await fetchHtml(job.url), id);
-    }
-  }
   const html = await fetchHtml(job.url);
   const parsed = parseJobkorea(html, id);
   if (parsed.iframe) {

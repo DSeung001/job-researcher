@@ -2,18 +2,6 @@ name: Poll jobs
 on:
   workflow_dispatch:
     inputs:
-      sources:
-        description: "수집할 사이트"
-        type: choice
-        options: ["jobkorea,wanted", "jobkorea", "wanted"]
-        default: "jobkorea"
-        required: true
-      runner:
-        description: "원티드는 접근 가능한 self-hosted 러너 필요"
-        type: choice
-        options: ["ubuntu-latest", "self-hosted"]
-        default: "ubuntu-latest"
-        required: true
       max_pages:
         description: "검증용 페이지 제한 (전체 수집은 250)"
         default: "250"
@@ -23,7 +11,7 @@ on:
         default: "0"
         required: true
   schedule:
-    - cron: "0 19 * * *" # 매일 한국시간 04:00 (UTC 19:00)
+    - cron: "0 0 * * *" # 매일 한국시간 09:00 (UTC 00:00)
 permissions:
   contents: write
 concurrency:
@@ -31,8 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect:
-    # Repository variables can opt scheduled polling into an accessible runner.
-    runs-on: ${{ inputs.runner || vars.POLL_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -46,18 +33,17 @@ jobs:
         id: collect
         continue-on-error: true
         env:
-          SOURCES: ${{ inputs.sources || vars.POLL_SOURCES || 'jobkorea' }}
           MAX_PAGES: ${{ inputs.max_pages || '250' }}
           MAX_DETAILS: ${{ inputs.max_details || '0' }}
         run: |
           rm -f reports/collection.json
-          npx tsx src/collect.ts --max-pages "$MAX_PAGES" --max-details "$MAX_DETAILS" --sources "$SOURCES"
+          npx tsx src/collect.ts --max-pages "$MAX_PAGES" --max-details "$MAX_DETAILS"
       - name: Inspect and save public data
         if: always() && !cancelled()
         shell: bash
         run: |
           npm run privacy
-          git add -- data/wanted.json data/jobkorea.json
+          git add -- data/jobkorea.json
           if [ -f reports/collection.json ]; then git add -- reports/collection.json; fi
           npm run privacy
           if ! git diff --cached --quiet; then
@@ -66,6 +52,4 @@ jobs:
           fi
       - name: Report collection by source
         if: always() && !cancelled() && (steps.collect.outcome == 'success' || steps.collect.outcome == 'failure')
-        env:
-          SOURCES: ${{ inputs.sources || vars.POLL_SOURCES || 'jobkorea' }}
-        run: node --import tsx src/collection-report.ts --sources "$SOURCES"
+        run: node --import tsx src/collection-report.ts
