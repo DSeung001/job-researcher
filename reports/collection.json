@@ -1,13 +1,13 @@
 [
   {
     "source": "jobkorea",
-    "at": "2026-11-26T06:31:41.171Z",
+    "at": "2026-11-27T06:21:28.939Z",
     "success": false,
     "complete": false,
-    "discovered": 0,
-    "fetched": 0,
+    "discovered": 2195,
+    "fetched": 168,
     "failed": 0,
-    "filtered": 0,
-    "reason": "listing-failed"
+    "filtered": 497,
+    "reason": "time-budget"
   }
 ]
